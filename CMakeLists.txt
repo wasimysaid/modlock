@@ -190,6 +190,7 @@ add_library(modlock_sdk SHARED
   src/wasm/stack_samples.cc
   src/wasm/runtime.cc
   src/wasm/definition_changes.cc
+  src/wasm/modifier_definition.cc
   src/wasm/game.cc
   src/wasm/game_combat.cc
   src/wasm/game_effects.cc
@@ -535,9 +536,18 @@ if(BUILD_TESTING)
   add_executable(ability_definitions_test tests/ability_definitions_test.cc)
   target_link_libraries(ability_definitions_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME ability_definitions_test COMMAND ability_definitions_test)
+  add_executable(modifier_definition_test tests/modifier_definition_test.cc
+    src/wasm/modifier_definition.cc src/wasm/definition_changes.cc)
+  target_include_directories(modifier_definition_test PRIVATE src)
+  target_link_libraries(modifier_definition_test PRIVATE modlock::sdk gtest_main)
+  add_test(NAME modifier_definition_test COMMAND modifier_definition_test)
   add_executable(ability_input_hook_test tests/ability_input_hook_test.cc)
   target_link_libraries(ability_input_hook_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME ability_input_hook_test COMMAND ability_input_hook_test)
+  add_executable(input_changes_test tests/input_changes_test.cc src/wasm/input_changes.cc)
+  target_include_directories(input_changes_test PRIVATE src)
+  target_link_libraries(input_changes_test PRIVATE modlock::sdk gtest_main)
+  add_test(NAME input_changes_test COMMAND input_changes_test)
   add_executable(combat_events_test tests/combat_events_test.cc)
   target_link_libraries(combat_events_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME combat_events_test COMMAND combat_events_test)

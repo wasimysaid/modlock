@@ -87,14 +87,16 @@ uint64_t GameServices::Filter(gameinterop::AbilityInputHook::Input& input) {
 
   // Queue each game's watched changes and add its pending press, then apply
   // the remaps to the input the presses made.
+  uint64_t injected = 0;
   for (auto* game : games_) {
     game->input_.Record(input.slot, pressed, released);
-    game->input_.ApplyPress(input);
+    injected |= game->input_.ApplyPress(input);
   }
   for (auto* game : games_) {
     game->input_.ApplyRemap(input);
+    injected = game->input_.RemapButtons(injected);
   }
-  return blocked;
+  return blocked & ~injected;
 }
 
 void GameServices::Projectiles() {

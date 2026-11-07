@@ -83,6 +83,27 @@ const (
 	PickupKindMovementBuff = entitiespb.PickupKind_PICKUP_KIND_MOVEMENT_BUFF
 )
 
+// File names a definition file.
+type Definition_File = wasmpb.Definition_File
+
+// The values of Definition_File.
+const (
+	// Definition_FileFileAbilities is scripts/abilities.vdata, the abilities and items.
+	Definition_FileFileAbilities = wasmpb.Definition_File_FILE_ABILITIES
+	// Definition_FileFileHeroes is scripts/heroes.vdata, the heroes.
+	Definition_FileFileHeroes = wasmpb.Definition_File_FILE_HEROES
+	// Definition_FileFileBotDifficulty is scripts/bots/bot_difficulty.vdata, the bot
+	// difficulties. An entry names one by its ECitadelBotDifficulty value,
+	// such as k_ECitadelBotDifficulty_Hard.
+	Definition_FileFileBotDifficulty = wasmpb.Definition_File_FILE_BOT_DIFFICULTY
+	// Definition_FileFileNpcUnits is scripts/npc_units.vdata, the troopers, bosses and
+	// other units, and the bot brain (npc_player_bot_brain) every bot shares.
+	Definition_FileFileNpcUnits = wasmpb.Definition_File_FILE_NPC_UNITS
+	// Definition_FileFileModifiers names embedded modifier definitions by ability/modifier.
+	// Fields must name a direct float of the modifier's exact schema class.
+	Definition_FileFileModifiers = wasmpb.Definition_File_FILE_MODIFIERS
+)
+
 // MovementAction is a movement fact the game announced for a hero.
 type MovementAction = movementpb.MovementAction
 
@@ -383,6 +404,12 @@ type InputEvent = wasmpb.InputEvent
 // game times in seconds, or zero when unset.
 type RiftState = wasmpb.RiftState
 
+// SettingChangedEvent is one player's new value of one setting.
+type SettingChangedEvent = settingspb.SettingChangedEvent
+
+// DefinitionFieldOptions reads a direct float from a modifier definition.
+type DefinitionFieldOptions = wasmpb.DefinitionFieldOptions
+
 // MovementSample is one watched hero's movement on one tick, as the game keeps
 // it. A hero whose position, velocity or ground the game does not provide has
 // no sample; another field the game did not provide is absent or zero.
@@ -501,9 +528,6 @@ type BotOptionsHeroName = playerspb.BotOptions_HeroName
 
 // BotOptionsHeroId sets BotOptions.Hero to HeroId.
 type BotOptionsHeroId = playerspb.BotOptions_HeroId
-
-// SettingChangedEvent is one player's new value of one setting.
-type SettingChangedEvent = settingspb.SettingChangedEvent
 
 // Wheel reports one wheel step over a slider, anchored to its pointer position.
 type Wheel = uipb.Wheel
@@ -669,6 +693,16 @@ type Npc struct {
 type Pickup struct {
 	// Entity is the pickup's entity handle.
 	Entity uint32
+}
+
+// ReadDefinitionField verifies a modifier definition's currently applied
+// float value. Unsupported hosts return no value.
+func ReadDefinitionField(options *DefinitionFieldOptions) (float32, error) {
+	response := &wasmpb.DefinitionFieldResponse{}
+	if err := invoke("ReadDefinitionField", options, response); err != nil {
+		return 0, err
+	}
+	return response.GetValue(), nil
 }
 
 // logLine writes one line to the server log under the mod's name.
@@ -1397,6 +1431,12 @@ func (p Player) BlockInput(buttons uint64) error {
 // A bot presses them as a player would.
 func (p Player) Press(buttons uint64) error {
 	return invoke("Press", &wasmpb.PlayerInputRequest{Player: p.Slot, Buttons: buttons}, nil)
+}
+
+// CancelPress cancels only the selected queued scripted buttons for this
+// player. It does not release real keys, change blocks, or undo input already delivered.
+func (p Player) CancelPress(buttons uint64) error {
+	return invoke("CancelPress", &wasmpb.PlayerInputRequest{Player: p.Slot, Buttons: buttons}, nil)
 }
 
 // WatchInput replaces the buttons whose presses and releases arrive as

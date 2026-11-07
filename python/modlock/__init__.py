@@ -125,6 +125,28 @@ _PickupKind: dict[Any, Any] = {
 }
 
 
+# File names a definition file.
+type Definition_File = Literal[
+    "file_abilities",
+    "file_heroes",
+    "file_bot_difficulty",
+    "file_npc_units",
+    "file_modifiers",
+]
+_Definition_File: dict[Any, Any] = {
+    0: "file_abilities",
+    "file_abilities": 0,
+    1: "file_heroes",
+    "file_heroes": 1,
+    2: "file_bot_difficulty",
+    "file_bot_difficulty": 2,
+    3: "file_npc_units",
+    "file_npc_units": 3,
+    4: "file_modifiers",
+    "file_modifiers": 4,
+}
+
+
 # MovementAction is a movement fact the game announced for a hero.
 type MovementAction = Literal[
     "landed",
@@ -1012,6 +1034,27 @@ class RiftState:
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
+class SettingChangedEvent:
+    """SettingChangedEvent is one player's new value of one setting."""
+
+    # player is the player's server slot.
+    player: Player
+    # key names the setting.
+    key: str = ""
+    # value is the new value.
+    value: str = ""
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class DefinitionFieldOptions:
+    """DefinitionFieldOptions reads a direct float from a modifier definition."""
+
+    file: Definition_File
+    entry: str = ""
+    field: str = ""
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
 class MovementSample:
     """MovementSample is one watched hero's movement on one tick, as the game keeps
     it. A hero whose position, velocity or ground the game does not provide has
@@ -1715,18 +1758,6 @@ class BotOptions:
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
-class SettingChangedEvent:
-    """SettingChangedEvent is one player's new value of one setting."""
-
-    # player is the player's server slot.
-    player: Player
-    # key names the setting.
-    key: str = ""
-    # value is the new value.
-    value: str = ""
-
-
-@dataclasses.dataclass(slots=True, kw_only=True)
 class Wheel:
     """Wheel reports one wheel step over a slider, anchored to its pointer position."""
 
@@ -2233,6 +2264,12 @@ class Player:
         A bot presses them as a player would.
         """
         return _call("Press", "PlayerInputRequest", {"player": self, "buttons": buttons}) is not None
+
+    def cancel_press(self, buttons: int) -> bool:
+        """cancel_press cancels only the selected queued scripted buttons for this
+        player. It does not release real keys, change blocks, or undo input already delivered.
+        """
+        return _call("CancelPress", "PlayerInputRequest", {"player": self, "buttons": buttons}) is not None
 
     def kill(self) -> bool:
         """kill kills a player's hero, crediting no one."""
@@ -3066,6 +3103,49 @@ _SCHEMA: wire.Schema = {
             wire.Field(4, "label", "string", optional=True),
         ],
     ),
+    "SettingChangedEvent": (
+        SettingChangedEvent,
+        [
+            wire.Field(1, "player", "int32", cls=Player, key="slot"),
+            wire.Field(2, "key", "string"),
+            wire.Field(3, "value", "string"),
+        ],
+    ),
+    "PlayerSettingRequest": (
+        None,
+        [
+            wire.Field(1, "player", "int32", cls=Player, key="slot"),
+            wire.Field(2, "key", "string"),
+        ],
+    ),
+    "SettingResponse": (
+        None,
+        [
+            wire.Field(1, "value", "string"),
+        ],
+    ),
+    "SetPlayerSettingRequest": (
+        None,
+        [
+            wire.Field(1, "player", "int32", cls=Player, key="slot"),
+            wire.Field(2, "key", "string"),
+            wire.Field(3, "value", "string"),
+        ],
+    ),
+    "DefinitionFieldOptions": (
+        DefinitionFieldOptions,
+        [
+            wire.Field(1, "file", "enum", enum=_Definition_File),
+            wire.Field(2, "entry", "string"),
+            wire.Field(3, "field", "string"),
+        ],
+    ),
+    "DefinitionFieldResponse": (
+        None,
+        [
+            wire.Field(1, "value", "float"),
+        ],
+    ),
     "MovementSample": (
         MovementSample,
         [
@@ -3710,35 +3790,6 @@ _SCHEMA: wire.Schema = {
             wire.Field(1, "player", "int32", cls=Player, key="slot"),
         ],
     ),
-    "SettingChangedEvent": (
-        SettingChangedEvent,
-        [
-            wire.Field(1, "player", "int32", cls=Player, key="slot"),
-            wire.Field(2, "key", "string"),
-            wire.Field(3, "value", "string"),
-        ],
-    ),
-    "PlayerSettingRequest": (
-        None,
-        [
-            wire.Field(1, "player", "int32", cls=Player, key="slot"),
-            wire.Field(2, "key", "string"),
-        ],
-    ),
-    "SettingResponse": (
-        None,
-        [
-            wire.Field(1, "value", "string"),
-        ],
-    ),
-    "SetPlayerSettingRequest": (
-        None,
-        [
-            wire.Field(1, "player", "int32", cls=Player, key="slot"),
-            wire.Field(2, "key", "string"),
-            wire.Field(3, "value", "string"),
-        ],
-    ),
     "Wheel": (
         Wheel,
         [
@@ -3869,6 +3920,16 @@ _SCHEMA: wire.Schema = {
         ],
     ),
 }
+
+
+def read_definition_field(options: DefinitionFieldOptions) -> float | None:
+    """read_definition_field verifies a modifier definition's currently applied
+    float value. Unsupported hosts return no value.
+    """
+    response = _call("ReadDefinitionField", "DefinitionFieldOptions", options, "DefinitionFieldResponse")
+    if response is None:
+        return None
+    return response["value"]
 
 
 def log(message: str) -> bool:

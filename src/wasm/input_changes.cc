@@ -24,6 +24,17 @@ void InputChanges::Press(int32_t slot, uint64_t buttons) {
   presses_[slot] |= buttons;
 }
 
+void InputChanges::CancelPress(int32_t slot, uint64_t buttons) {
+  const auto press = presses_.find(slot);
+  if (press == presses_.end()) {
+    return;
+  }
+  press->second &= ~buttons;
+  if (press->second == 0) {
+    presses_.erase(press);
+  }
+}
+
 void InputChanges::Watch(uint64_t buttons) {
   watched_ = buttons;
 }
@@ -43,18 +54,20 @@ void InputChanges::Record(int32_t slot, uint64_t pressed, uint64_t released) {
   }
 }
 
-void InputChanges::ApplyPress(gameinterop::AbilityInputHook::Input& input) {
+uint64_t InputChanges::ApplyPress(gameinterop::AbilityInputHook::Input& input) {
   // Take the pending press for this slot.
   auto press = presses_.find(input.slot);
   if (press == presses_.end()) {
-    return;
+    return 0;
   }
 
   // A press is down and newly changed for this one input.
-  input.buttons[0] |= press->second;
-  input.buttons[1] |= press->second;
-  input.buttons[2] &= ~press->second;
+  const uint64_t buttons = press->second;
+  input.buttons[0] |= buttons;
+  input.buttons[1] |= buttons;
+  input.buttons[2] &= ~buttons;
   presses_.erase(press);
+  return buttons;
 }
 
 void InputChanges::ApplyRemap(gameinterop::AbilityInputHook::Input& input) const {
@@ -64,11 +77,7 @@ void InputChanges::ApplyRemap(gameinterop::AbilityInputHook::Input& input) const
   }
   const bool held = input.buttons[0] & remap_.from();
   for (auto& state : input.buttons) {
-    const bool set = state & remap_.from();
-    state &= ~remap_.from();
-    if (set) {
-      state |= remap_.to();
-    }
+    state = RemapButtons(state);
   }
 
   // A repeating remap presses the to buttons on every input the from buttons
@@ -76,6 +85,10 @@ void InputChanges::ApplyRemap(gameinterop::AbilityInputHook::Input& input) const
   if (held && remap_.repeat()) {
     input.buttons[1] |= remap_.to();
   }
+}
+
+uint64_t InputChanges::RemapButtons(uint64_t buttons) const {
+  return buttons & remap_.from() ? (buttons & ~remap_.from()) | remap_.to() : buttons;
 }
 
 std::vector<InputChanges::ButtonChange> InputChanges::TakeChanges() {

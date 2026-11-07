@@ -101,6 +101,21 @@ local PickupKind: { [any]: any } = {
 	movementBuff = 1,
 }
 
+-- File names a definition file.
+export type Definition_File = "fileAbilities" | "fileHeroes" | "fileBotDifficulty" | "fileNpcUnits" | "fileModifiers"
+local Definition_File: { [any]: any } = {
+	[0] = "fileAbilities",
+	fileAbilities = 0,
+	[1] = "fileHeroes",
+	fileHeroes = 1,
+	[2] = "fileBotDifficulty",
+	fileBotDifficulty = 2,
+	[3] = "fileNpcUnits",
+	fileNpcUnits = 3,
+	[4] = "fileModifiers",
+	fileModifiers = 4,
+}
+
 -- MovementAction is a movement fact the game announced for a hero.
 export type MovementAction = "landed" | "ziplineAttached" | "groundDash" | "slide" | "bouncePad" | "dashJump" | "airJump" | "wallJump" | "airDash" | "meleeStarted" | "abilityExecuted"
 local MovementAction: { [any]: any } = {
@@ -788,6 +803,23 @@ export type RiftState = {
 	spawnWindow: number,
 }
 
+-- SettingChangedEvent is one player's new value of one setting.
+export type SettingChangedEvent = {
+	-- player is the player's server slot.
+	player: Player,
+	-- key names the setting.
+	key: string,
+	-- value is the new value.
+	value: string,
+}
+
+-- DefinitionFieldOptions reads a direct float from a modifier definition.
+export type DefinitionFieldOptions = {
+	file: Definition_File,
+	entry: string,
+	field: string,
+}
+
 -- MovementSample is one watched hero's movement on one tick, as the game keeps
 -- it. A hero whose position, velocity or ground the game does not provide has
 -- no sample; another field the game did not provide is absent or zero.
@@ -1402,16 +1434,6 @@ export type BotOptions = {
 	position: Vector?,
 }
 
--- SettingChangedEvent is one player's new value of one setting.
-export type SettingChangedEvent = {
-	-- player is the player's server slot.
-	player: Player,
-	-- key names the setting.
-	key: string,
-	-- value is the new value.
-	value: string,
-}
-
 -- Wheel reports one wheel step over a slider, anchored to its pointer position.
 export type Wheel = {
 	-- delta is 1 for up and -1 for down. It never changes the slider's value.
@@ -1742,6 +1764,9 @@ export type Player = {
 	-- press presses buttons at the player's next input, even through a block.
 	-- A bot presses them as a player would.
 	press: (self: Player, buttons: number) -> boolean,
+	-- cancelPress cancels only the selected queued scripted buttons for this
+	-- player. It does not release real keys, change blocks, or undo input already delivered.
+	cancelPress: (self: Player, buttons: number) -> boolean,
 	-- kill kills a player's hero, crediting no one.
 	kill: (self: Player) -> boolean,
 	-- setVelocity replaces the motion of a player's hero without moving it.
@@ -2106,6 +2131,12 @@ end
 -- A bot presses them as a player would.
 function Player.press(self: Player, buttons: number): boolean
 	return call("Press", "PlayerInputRequest", { player = self, buttons = buttons }) ~= nil
+end
+
+-- cancelPress cancels only the selected queued scripted buttons for this
+-- player. It does not release real keys, change blocks, or undo input already delivered.
+function Player.cancelPress(self: Player, buttons: number): boolean
+	return call("CancelPress", "PlayerInputRequest", { player = self, buttons = buttons }) ~= nil
 end
 
 -- kill kills a player's hero, crediting no one.
@@ -2755,6 +2786,31 @@ schema.AddMetricRequest = {
 	{ number = 3, name = "value", kind = "double" },
 	{ number = 4, name = "label", kind = "string", optional = true },
 }
+schema.SettingChangedEvent = {
+	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
+	{ number = 2, name = "key", kind = "string" },
+	{ number = 3, name = "value", kind = "string" },
+}
+schema.PlayerSettingRequest = {
+	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
+	{ number = 2, name = "key", kind = "string" },
+}
+schema.SettingResponse = {
+	{ number = 1, name = "value", kind = "string" },
+}
+schema.SetPlayerSettingRequest = {
+	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
+	{ number = 2, name = "key", kind = "string" },
+	{ number = 3, name = "value", kind = "string" },
+}
+schema.DefinitionFieldOptions = {
+	{ number = 1, name = "file", kind = "enum", enum = Definition_File },
+	{ number = 2, name = "entry", kind = "string" },
+	{ number = 3, name = "field", kind = "string" },
+}
+schema.DefinitionFieldResponse = {
+	{ number = 1, name = "value", kind = "float" },
+}
 schema.MovementSample = {
 	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
 	{ number = 2, name = "pawn", kind = "uint32" },
@@ -3186,23 +3242,6 @@ schema.BotOptions = {
 schema.BotResponse = {
 	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
 }
-schema.SettingChangedEvent = {
-	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
-	{ number = 2, name = "key", kind = "string" },
-	{ number = 3, name = "value", kind = "string" },
-}
-schema.PlayerSettingRequest = {
-	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
-	{ number = 2, name = "key", kind = "string" },
-}
-schema.SettingResponse = {
-	{ number = 1, name = "value", kind = "string" },
-}
-schema.SetPlayerSettingRequest = {
-	{ number = 1, name = "player", kind = "int32", class = Player, key = "slot" },
-	{ number = 2, name = "key", kind = "string" },
-	{ number = 3, name = "value", kind = "string" },
-}
 schema.Wheel = {
 	{ number = 1, name = "delta", kind = "float" },
 	{ number = 2, name = "fraction", kind = "float" },
@@ -3281,6 +3320,16 @@ schema.PrecacheOptions = {
 	{ number = 1, name = "heroes", kind = "string", repeated = true },
 	{ number = 2, name = "resources", kind = "string", repeated = true },
 }
+
+-- readDefinitionField verifies a modifier definition's currently applied
+-- float value. Unsupported hosts return no value.
+function modlock.readDefinitionField(options: DefinitionFieldOptions): number?
+	local response = call("ReadDefinitionField", "DefinitionFieldOptions", options, "DefinitionFieldResponse")
+	if response == nil then
+		return nil
+	end
+	return response.value
+end
 
 -- log writes one line to the server log under the mod's name.
 function modlock.log(message: string): boolean

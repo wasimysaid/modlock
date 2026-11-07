@@ -34,6 +34,8 @@ class InputChanges {
   // Press adds buttons to the next input of the player in slot.
   void Press(int32_t slot, uint64_t buttons);
 
+  void CancelPress(int32_t slot, uint64_t buttons);
+
   // Watch selects the buttons whose changes Record queues.
   void Watch(uint64_t buttons);
 
@@ -48,11 +50,13 @@ class InputChanges {
   void Record(int32_t slot, uint64_t pressed, uint64_t released);
 
   // ApplyPress adds the pending press of input's player to input, as down and
-  // newly changed, and spends it.
-  void ApplyPress(gameinterop::AbilityInputHook::Input& input);
+  // newly changed, spends it, and returns the buttons exempt from this input's block.
+  uint64_t ApplyPress(gameinterop::AbilityInputHook::Input& input);
 
   // ApplyRemap moves the state of the remapped buttons in input.
   void ApplyRemap(gameinterop::AbilityInputHook::Input& input) const;
+
+  uint64_t RemapButtons(uint64_t buttons) const;
 
   // TakeChanges returns the watched button changes since the last call, in
   // the order players made them.

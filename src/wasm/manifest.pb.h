@@ -76,6 +76,14 @@ class Definition;
 struct DefinitionDefaultTypeInternal;
 MODLOCK_API extern DefinitionDefaultTypeInternal _Definition_default_instance_;
 MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_class_data_;
+class DefinitionFieldOptions;
+struct DefinitionFieldOptionsDefaultTypeInternal;
+MODLOCK_API extern DefinitionFieldOptionsDefaultTypeInternal _DefinitionFieldOptions_default_instance_;
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull DefinitionFieldOptions_class_data_;
+class DefinitionFieldResponse;
+struct DefinitionFieldResponseDefaultTypeInternal;
+MODLOCK_API extern DefinitionFieldResponseDefaultTypeInternal _DefinitionFieldResponse_default_instance_;
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull DefinitionFieldResponse_class_data_;
 class Definition_CopyFieldsEntry_DoNotUse;
 struct Definition_CopyFieldsEntry_DoNotUseDefaultTypeInternal;
 MODLOCK_API extern Definition_CopyFieldsEntry_DoNotUseDefaultTypeInternal _Definition_CopyFieldsEntry_DoNotUse_default_instance_;
@@ -237,6 +245,7 @@ enum Definition_File : int {
   Definition_File_FILE_HEROES = 1,
   Definition_File_FILE_BOT_DIFFICULTY = 2,
   Definition_File_FILE_NPC_UNITS = 3,
+  Definition_File_FILE_MODIFIERS = 4,
   Definition_File_Definition_File_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   Definition_File_Definition_File_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -247,11 +256,11 @@ extern const uint32_t Definition_File_internal_data_[];
 inline constexpr Definition_File Definition_File_File_MIN =
     static_cast<Definition_File>(0);
 inline constexpr Definition_File Definition_File_File_MAX =
-    static_cast<Definition_File>(3);
+    static_cast<Definition_File>(4);
 inline bool Definition_File_IsValid(int value) {
-  return 0 <= value && value <= 3;
+  return 0 <= value && value <= 4;
 }
-inline constexpr int Definition_File_File_ARRAYSIZE = 3 + 1;
+inline constexpr int Definition_File_File_ARRAYSIZE = 4 + 1;
 const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL Definition_File_descriptor();
 template <typename T>
 const ::std::string& Definition_File_Name(T value) {
@@ -262,7 +271,7 @@ const ::std::string& Definition_File_Name(T value) {
 }
 template <>
 inline const ::std::string& Definition_File_Name(Definition_File value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<Definition_File_descriptor, 0, 3>(
+  return ::google::protobuf::internal::NameOfDenseEnum<Definition_File_descriptor, 0, 4>(
       static_cast<int>(value));
 }
 inline bool Definition_File_Parse(
@@ -496,6 +505,420 @@ class MODLOCK_API Movement final : public ::google::protobuf::Message
 };
 
 MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Movement_class_data_;
+// -------------------------------------------------------------------
+
+class MODLOCK_API DefinitionFieldResponse final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:modlock.wasm.DefinitionFieldResponse) */ {
+ public:
+  inline DefinitionFieldResponse() : DefinitionFieldResponse(nullptr) {}
+  ~DefinitionFieldResponse() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(DefinitionFieldResponse* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(DefinitionFieldResponse));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR DefinitionFieldResponse(::google::protobuf::internal::ConstantInitialized);
+
+  inline DefinitionFieldResponse(const DefinitionFieldResponse& from) : DefinitionFieldResponse(nullptr, from) {}
+  inline DefinitionFieldResponse(DefinitionFieldResponse&& from) noexcept
+      : DefinitionFieldResponse(nullptr, ::std::move(from)) {}
+  inline DefinitionFieldResponse& operator=(const DefinitionFieldResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline DefinitionFieldResponse& operator=(DefinitionFieldResponse&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const DefinitionFieldResponse& default_instance() {
+    return *reinterpret_cast<const DefinitionFieldResponse*>(
+        &_DefinitionFieldResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 7;
+  friend void swap(DefinitionFieldResponse& a, DefinitionFieldResponse& b) { a.Swap(&b); }
+  inline void Swap(DefinitionFieldResponse* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(DefinitionFieldResponse* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  DefinitionFieldResponse* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<DefinitionFieldResponse>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const DefinitionFieldResponse& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const DefinitionFieldResponse& from) { DefinitionFieldResponse::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(DefinitionFieldResponse* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "modlock.wasm.DefinitionFieldResponse"; }
+
+  explicit DefinitionFieldResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  DefinitionFieldResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const DefinitionFieldResponse& from);
+  DefinitionFieldResponse(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, DefinitionFieldResponse&& from) noexcept
+      : DefinitionFieldResponse(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kValueFieldNumber = 1,
+  };
+  // float value = 1;
+  void clear_value() ;
+  float value() const;
+  void set_value(float value);
+
+  private:
+  float _internal_value() const;
+  void _internal_set_value(float value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:modlock.wasm.DefinitionFieldResponse)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<0, 1,
+                                   0, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const DefinitionFieldResponse& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    float value_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto;
+};
+
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull DefinitionFieldResponse_class_data_;
+// -------------------------------------------------------------------
+
+class MODLOCK_API DefinitionFieldOptions final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:modlock.wasm.DefinitionFieldOptions) */ {
+ public:
+  inline DefinitionFieldOptions() : DefinitionFieldOptions(nullptr) {}
+  ~DefinitionFieldOptions() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(DefinitionFieldOptions* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(DefinitionFieldOptions));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR DefinitionFieldOptions(::google::protobuf::internal::ConstantInitialized);
+
+  inline DefinitionFieldOptions(const DefinitionFieldOptions& from) : DefinitionFieldOptions(nullptr, from) {}
+  inline DefinitionFieldOptions(DefinitionFieldOptions&& from) noexcept
+      : DefinitionFieldOptions(nullptr, ::std::move(from)) {}
+  inline DefinitionFieldOptions& operator=(const DefinitionFieldOptions& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline DefinitionFieldOptions& operator=(DefinitionFieldOptions&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const DefinitionFieldOptions& default_instance() {
+    return *reinterpret_cast<const DefinitionFieldOptions*>(
+        &_DefinitionFieldOptions_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 6;
+  friend void swap(DefinitionFieldOptions& a, DefinitionFieldOptions& b) { a.Swap(&b); }
+  inline void Swap(DefinitionFieldOptions* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(DefinitionFieldOptions* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  DefinitionFieldOptions* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<DefinitionFieldOptions>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const DefinitionFieldOptions& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const DefinitionFieldOptions& from) { DefinitionFieldOptions::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(DefinitionFieldOptions* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "modlock.wasm.DefinitionFieldOptions"; }
+
+  explicit DefinitionFieldOptions(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  DefinitionFieldOptions(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const DefinitionFieldOptions& from);
+  DefinitionFieldOptions(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, DefinitionFieldOptions&& from) noexcept
+      : DefinitionFieldOptions(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kEntryFieldNumber = 2,
+    kFieldFieldNumber = 3,
+    kFileFieldNumber = 1,
+  };
+  // string entry = 2;
+  void clear_entry() ;
+  const ::std::string& entry() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_entry(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_entry();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_entry();
+  void set_allocated_entry(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_entry() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_entry(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_entry();
+
+  public:
+  // string field = 3;
+  void clear_field() ;
+  const ::std::string& field() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_field(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_field();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_field();
+  void set_allocated_field(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_field() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_field(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_field();
+
+  public:
+  // .modlock.wasm.Definition.File file = 1;
+  void clear_file() ;
+  ::modlock::wasm::Definition_File file() const;
+  void set_file(::modlock::wasm::Definition_File value);
+
+  private:
+  ::modlock::wasm::Definition_File _internal_file() const;
+  void _internal_set_file(::modlock::wasm::Definition_File value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:modlock.wasm.DefinitionFieldOptions)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   0, 54,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const DefinitionFieldOptions& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr entry_;
+    ::google::protobuf::internal::ArenaStringPtr field_;
+    int file_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto;
+};
+
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull DefinitionFieldOptions_class_data_;
 // -------------------------------------------------------------------
 
 class Definition_PropertiesEntry_DoNotUse final
@@ -759,6 +1182,7 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
   static constexpr File FILE_HEROES = Definition_File_FILE_HEROES;
   static constexpr File FILE_BOT_DIFFICULTY = Definition_File_FILE_BOT_DIFFICULTY;
   static constexpr File FILE_NPC_UNITS = Definition_File_FILE_NPC_UNITS;
+  static constexpr File FILE_MODIFIERS = Definition_File_FILE_MODIFIERS;
   static inline bool File_IsValid(int value) {
     return Definition_File_IsValid(value);
   }
@@ -2393,6 +2817,194 @@ inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL D
   SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000010U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.copy_fields)
   return _internal_mutable_copy_fields();
+}
+
+// -------------------------------------------------------------------
+
+// DefinitionFieldOptions
+
+// .modlock.wasm.Definition.File file = 1;
+inline void DefinitionFieldOptions::clear_file() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.file_ = 0;
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000004U);
+}
+inline ::modlock::wasm::Definition_File DefinitionFieldOptions::file() const {
+  // @@protoc_insertion_point(field_get:modlock.wasm.DefinitionFieldOptions.file)
+  return _internal_file();
+}
+inline void DefinitionFieldOptions::set_file(::modlock::wasm::Definition_File value) {
+  _internal_set_file(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  // @@protoc_insertion_point(field_set:modlock.wasm.DefinitionFieldOptions.file)
+}
+inline ::modlock::wasm::Definition_File DefinitionFieldOptions::_internal_file() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::modlock::wasm::Definition_File>(_impl_.file_);
+}
+inline void DefinitionFieldOptions::_internal_set_file(::modlock::wasm::Definition_File value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.file_ = value;
+}
+
+// string entry = 2;
+inline void DefinitionFieldOptions::clear_entry() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.entry_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000001U);
+}
+inline const ::std::string& DefinitionFieldOptions::entry() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:modlock.wasm.DefinitionFieldOptions.entry)
+  return _internal_entry();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void DefinitionFieldOptions::set_entry(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.entry_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:modlock.wasm.DefinitionFieldOptions.entry)
+}
+inline ::std::string* PROTOBUF_NONNULL DefinitionFieldOptions::mutable_entry()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_entry();
+  // @@protoc_insertion_point(field_mutable:modlock.wasm.DefinitionFieldOptions.entry)
+  return _s;
+}
+inline const ::std::string& DefinitionFieldOptions::_internal_entry() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.entry_.Get();
+}
+inline void DefinitionFieldOptions::_internal_set_entry(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.entry_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL DefinitionFieldOptions::_internal_mutable_entry() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.entry_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE DefinitionFieldOptions::release_entry() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:modlock.wasm.DefinitionFieldOptions.entry)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.entry_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.entry_.Set("", GetArena());
+  }
+  return released;
+}
+inline void DefinitionFieldOptions::set_allocated_entry(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.entry_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.entry_.IsDefault()) {
+    _impl_.entry_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:modlock.wasm.DefinitionFieldOptions.entry)
+}
+
+// string field = 3;
+inline void DefinitionFieldOptions::clear_field() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.field_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000002U);
+}
+inline const ::std::string& DefinitionFieldOptions::field() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:modlock.wasm.DefinitionFieldOptions.field)
+  return _internal_field();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void DefinitionFieldOptions::set_field(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.field_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:modlock.wasm.DefinitionFieldOptions.field)
+}
+inline ::std::string* PROTOBUF_NONNULL DefinitionFieldOptions::mutable_field()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_field();
+  // @@protoc_insertion_point(field_mutable:modlock.wasm.DefinitionFieldOptions.field)
+  return _s;
+}
+inline const ::std::string& DefinitionFieldOptions::_internal_field() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.field_.Get();
+}
+inline void DefinitionFieldOptions::_internal_set_field(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.field_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL DefinitionFieldOptions::_internal_mutable_field() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.field_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE DefinitionFieldOptions::release_field() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:modlock.wasm.DefinitionFieldOptions.field)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.field_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.field_.Set("", GetArena());
+  }
+  return released;
+}
+inline void DefinitionFieldOptions::set_allocated_field(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.field_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.field_.IsDefault()) {
+    _impl_.field_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:modlock.wasm.DefinitionFieldOptions.field)
+}
+
+// -------------------------------------------------------------------
+
+// DefinitionFieldResponse
+
+// float value = 1;
+inline void DefinitionFieldResponse::clear_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.value_ = 0;
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000001U);
+}
+inline float DefinitionFieldResponse::value() const {
+  // @@protoc_insertion_point(field_get:modlock.wasm.DefinitionFieldResponse.value)
+  return _internal_value();
+}
+inline void DefinitionFieldResponse::set_value(float value) {
+  _internal_set_value(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_set:modlock.wasm.DefinitionFieldResponse.value)
+}
+inline float DefinitionFieldResponse::_internal_value() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.value_;
+}
+inline void DefinitionFieldResponse::_internal_set_value(float value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.value_ = value;
 }
 
 #ifdef __GNUC__

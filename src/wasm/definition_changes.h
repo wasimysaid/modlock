@@ -50,4 +50,8 @@ std::expected<std::vector<std::string>, std::string> ChangeDefinitions(
     const gameinterop::ModuleImage& module, void* schema, const char* module_name,
     const google::protobuf::RepeatedPtrField<wasm::Definition>& definitions, DefinitionUndo& undo);
 
+std::expected<float, std::string> ReadDefinitionFloat(const gameinterop::ModuleImage& module,
+                                                      void* schema, const char* module_name,
+                                                      const DefinitionFieldOptions& request);
+
 }  // namespace modlock::wasm

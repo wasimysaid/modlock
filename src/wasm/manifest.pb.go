@@ -172,6 +172,9 @@ const (
 	// FILE_NPC_UNITS is scripts/npc_units.vdata, the troopers, bosses and
 	// other units, and the bot brain (npc_player_bot_brain) every bot shares.
 	Definition_FILE_NPC_UNITS Definition_File = 3
+	// FILE_MODIFIERS names embedded modifier definitions by ability/modifier.
+	// Fields must name a direct float of the modifier's exact schema class.
+	Definition_FILE_MODIFIERS Definition_File = 4
 )
 
 // Enum value maps for Definition_File.
@@ -181,12 +184,14 @@ var (
 		1: "FILE_HEROES",
 		2: "FILE_BOT_DIFFICULTY",
 		3: "FILE_NPC_UNITS",
+		4: "FILE_MODIFIERS",
 	}
 	Definition_File_value = map[string]int32{
 		"FILE_ABILITIES":      0,
 		"FILE_HEROES":         1,
 		"FILE_BOT_DIFFICULTY": 2,
 		"FILE_NPC_UNITS":      3,
+		"FILE_MODIFIERS":      4,
 	}
 )
 
@@ -449,6 +454,59 @@ func (x *Definition) GetCopyFields() map[string]string {
 	return nil
 }
 
+// DefinitionFieldOptions reads a direct float from a modifier definition.
+type DefinitionFieldOptions struct {
+	unknownFields []byte
+	File          Definition_File `protobuf:"varint,1,opt,name=file,proto3" json:"file,omitempty"`
+	Entry         string          `protobuf:"bytes,2,opt,name=entry,proto3" json:"entry,omitempty"`
+	Field         string          `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+}
+
+func (x *DefinitionFieldOptions) Reset() {
+	*x = DefinitionFieldOptions{}
+}
+
+func (*DefinitionFieldOptions) ProtoMessage() {}
+
+func (x *DefinitionFieldOptions) GetFile() Definition_File {
+	if x != nil {
+		return x.File
+	}
+	return Definition_FILE_ABILITIES
+}
+
+func (x *DefinitionFieldOptions) GetEntry() string {
+	if x != nil {
+		return x.Entry
+	}
+	return ""
+}
+
+func (x *DefinitionFieldOptions) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+type DefinitionFieldResponse struct {
+	unknownFields []byte
+	Value         float32 `protobuf:"fixed32,1,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *DefinitionFieldResponse) Reset() {
+	*x = DefinitionFieldResponse{}
+}
+
+func (*DefinitionFieldResponse) ProtoMessage() {}
+
+func (x *DefinitionFieldResponse) GetValue() float32 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
 type Definition_PropertiesEntry struct {
 	unknownFields []byte
 	Key           string  `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -593,6 +651,40 @@ func (m *Definition) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
+func (m *DefinitionFieldOptions) CloneVT() *DefinitionFieldOptions {
+	if m == nil {
+		return (*DefinitionFieldOptions)(nil)
+	}
+	r := new(DefinitionFieldOptions)
+	r.File = m.File
+	r.Entry = m.Entry
+	r.Field = m.Field
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *DefinitionFieldOptions) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *DefinitionFieldResponse) CloneVT() *DefinitionFieldResponse {
+	if m == nil {
+		return (*DefinitionFieldResponse)(nil)
+	}
+	r := new(DefinitionFieldResponse)
+	r.Value = m.Value
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *DefinitionFieldResponse) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
 func (this *Manifest) EqualVT(that *Manifest) bool {
 	if this == that {
 		return true
@@ -701,6 +793,52 @@ func (this *Definition) EqualVT(that *Definition) bool {
 
 func (this *Definition) EqualMessageVT(thatMsg any) bool {
 	that, ok := thatMsg.(*Definition)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *DefinitionFieldOptions) EqualVT(that *DefinitionFieldOptions) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.File != that.File {
+		return false
+	}
+	if this.Entry != that.Entry {
+		return false
+	}
+	if this.Field != that.Field {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *DefinitionFieldOptions) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*DefinitionFieldOptions)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *DefinitionFieldResponse) EqualVT(that *DefinitionFieldResponse) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Value != that.Value {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *DefinitionFieldResponse) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*DefinitionFieldResponse)
 	if !ok {
 		return false
 	}
@@ -1420,6 +1558,106 @@ func (x *Definition) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
+// MarshalProtoJSON marshals the DefinitionFieldOptions message to JSON.
+func (x *DefinitionFieldOptions) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.File != 0 || s.HasField("file") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("file")
+		x.File.MarshalProtoJSON(s)
+	}
+	if x.Entry != "" || s.HasField("entry") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("entry")
+		s.WriteString(x.Entry)
+	}
+	if x.Field != "" || s.HasField("field") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("field")
+		s.WriteString(x.Field)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the DefinitionFieldOptions to JSON.
+func (x *DefinitionFieldOptions) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the DefinitionFieldOptions message from JSON.
+func (x *DefinitionFieldOptions) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "file":
+			s.AddField("file")
+			x.File.UnmarshalProtoJSON(s)
+		case "entry":
+			s.AddField("entry")
+			x.Entry = s.ReadString()
+		case "field":
+			s.AddField("field")
+			x.Field = s.ReadString()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the DefinitionFieldOptions from JSON.
+func (x *DefinitionFieldOptions) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the DefinitionFieldResponse message to JSON.
+func (x *DefinitionFieldResponse) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Value != 0 || s.HasField("value") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("value")
+		s.WriteFloat32(x.Value)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the DefinitionFieldResponse to JSON.
+func (x *DefinitionFieldResponse) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the DefinitionFieldResponse message from JSON.
+func (x *DefinitionFieldResponse) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "value":
+			s.AddField("value")
+			x.Value = s.ReadFloat32()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the DefinitionFieldResponse from JSON.
+func (x *DefinitionFieldResponse) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
 func (m *Manifest) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -1684,6 +1922,90 @@ func (m *Definition) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *DefinitionFieldOptions) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *DefinitionFieldOptions) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *DefinitionFieldOptions) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i = protobuf_go_lite.EncodeRawBytes(dAtA, i, m.unknownFields)
+	}
+	if len(m.Field) > 0 {
+		i = protobuf_go_lite.EncodeString(dAtA, i, m.Field)
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Entry) > 0 {
+		i = protobuf_go_lite.EncodeString(dAtA, i, m.Entry)
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.File != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.File))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *DefinitionFieldResponse) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *DefinitionFieldResponse) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *DefinitionFieldResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i = protobuf_go_lite.EncodeRawBytes(dAtA, i, m.unknownFields)
+	}
+	if m.Value != 0 {
+		i = protobuf_go_lite.EncodeFixed32(dAtA, i, uint32(math.Float32bits(float32(m.Value))))
+		i--
+		dAtA[i] = 0xd
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *Manifest) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -1761,6 +2083,30 @@ func (m *Definition) SizeVT() (n int) {
 		mapEntrySize := protobuf_go_lite.SizeStringValue(1, k) + protobuf_go_lite.SizeStringValue(1, v)
 		n += protobuf_go_lite.SizeMessage(1, mapEntrySize)
 	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *DefinitionFieldOptions) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += protobuf_go_lite.SizeVarintNonZero(1, m.File)
+	n += protobuf_go_lite.SizeStringNonEmpty(1, m.Entry)
+	n += protobuf_go_lite.SizeStringNonEmpty(1, m.Field)
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *DefinitionFieldResponse) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += protobuf_go_lite.SizeFixed32NonZero(1, m.Value)
 	n += len(m.unknownFields)
 	return n
 }
@@ -1999,6 +2345,42 @@ func (x *Definition) MarshalProtoText() string {
 }
 
 func (x *Definition) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *DefinitionFieldOptions) MarshalProtoText() string {
+	var sb protobuf_go_lite.TextBuilder
+	initialLen := protobuf_go_lite.TextStartMessage(&sb, "DefinitionFieldOptions")
+	if x.File != 0 {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "file")
+		protobuf_go_lite.TextWriteStringer(&sb, Definition_File(x.File))
+	}
+	if x.Entry != "" {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "entry")
+		protobuf_go_lite.TextWriteString(&sb, x.Entry)
+	}
+	if x.Field != "" {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "field")
+		protobuf_go_lite.TextWriteString(&sb, x.Field)
+	}
+	return protobuf_go_lite.TextFinishMessage(&sb)
+}
+
+func (x *DefinitionFieldOptions) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *DefinitionFieldResponse) MarshalProtoText() string {
+	var sb protobuf_go_lite.TextBuilder
+	initialLen := protobuf_go_lite.TextStartMessage(&sb, "DefinitionFieldResponse")
+	if x.Value != 0 {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "value")
+		protobuf_go_lite.TextWriteFloat32(&sb, x.Value)
+	}
+	return protobuf_go_lite.TextFinishMessage(&sb)
+}
+
+func (x *DefinitionFieldResponse) String() string {
 	return x.MarshalProtoText()
 }
 
@@ -2445,6 +2827,135 @@ func (m *Definition) UnmarshalVT(dAtA []byte) error {
 			}
 			m.CopyFields[mapkey] = mapvalue
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *DefinitionFieldOptions) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: DefinitionFieldOptions: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: DefinitionFieldOptions: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field File", wireType)
+			}
+			m.File = 0
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			m.File = Definition_File(_v)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Entry", wireType)
+			}
+			var v string
+			v, iNdEx, err = protobuf_go_lite.DecodeString(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			m.Entry = v
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Field", wireType)
+			}
+			var v string
+			v, iNdEx, err = protobuf_go_lite.DecodeString(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			m.Field = v
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *DefinitionFieldResponse) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: DefinitionFieldResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: DefinitionFieldResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.Value = float32(math.Float32frombits(v))
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

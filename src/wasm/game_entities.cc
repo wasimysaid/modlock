@@ -354,6 +354,11 @@ std::expected<void, std::string> Game::Press(const wasm::PlayerInputRequest& req
   return {};
 }
 
+std::expected<void, std::string> Game::CancelPress(const wasm::PlayerInputRequest& request) {
+  input_.CancelPress(request.player(), request.buttons());
+  return {};
+}
+
 std::expected<void, std::string> Game::WatchInput(const wasm::InputRequest& request) {
   input_.Watch(request.buttons());
   services_.Input();

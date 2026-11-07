@@ -567,6 +567,12 @@ export enum Definition_File {
    * other units, and the bot brain (npc_player_bot_brain) every bot shares.
    */
   NPC_UNITS = 3,
+
+  /**
+   * FILE_MODIFIERS names embedded modifier definitions by ability/modifier.
+   * Fields must name a direct float of the modifier's exact schema class.
+   */
+  MODIFIERS = 4,
 }
 
 export const Definition_File_Enum = /* @__PURE__ */ createEnumType(
@@ -576,5 +582,106 @@ export const Definition_File_Enum = /* @__PURE__ */ createEnumType(
     [1, 'FILE_HEROES'],
     [2, 'FILE_BOT_DIFFICULTY'],
     [3, 'FILE_NPC_UNITS'],
+    [4, 'FILE_MODIFIERS'],
   ],
 )
+
+/**
+ * DefinitionFieldOptions reads a direct float from a modifier definition.
+ *
+ * @generated from message modlock.wasm.DefinitionFieldOptions
+ */
+export interface DefinitionFieldOptions {
+  file?: Definition_File
+  entry?: string
+  field?: string
+}
+
+export const DefinitionFieldOptions: MessageType<DefinitionFieldOptions> =
+  /* @__PURE__ */ createMessageType<DefinitionFieldOptions>(
+    'modlock.wasm.DefinitionFieldOptions',
+    () => [
+      [1, 'file', 14, 0, Definition_File_Enum],
+      [2, 'entry', 9],
+      [3, 'field', 9],
+    ],
+    {
+      decode: (
+        r: BinaryReader,
+        end: number,
+        m: DefinitionFieldOptions,
+      ): DefinitionFieldOptions => {
+        while (r.pos < end) {
+          const t = r.tag()
+          if ((t & 7) === 4) return m
+          switch (t >>> 3) {
+            case 1:
+              m.file = r.int32()
+              break
+            case 2:
+              m.entry = r.string()
+              break
+            case 3:
+              m.field = r.string()
+              break
+            default:
+              r.skip(t)
+          }
+        }
+        return m
+      },
+      encode: (m: DefinitionFieldOptions, w: Writer): void => {
+        {
+          const v = m.file
+          if (v) w.uint32(8).int32(v)
+        }
+        {
+          const v = m.entry
+          if (v) w.uint32(18).string(v)
+        }
+        {
+          const v = m.field
+          if (v) w.uint32(26).string(v)
+        }
+      },
+    },
+  )
+
+/**
+ * @generated from message modlock.wasm.DefinitionFieldResponse
+ */
+export interface DefinitionFieldResponse {
+  value?: number
+}
+
+export const DefinitionFieldResponse: MessageType<DefinitionFieldResponse> =
+  /* @__PURE__ */ createMessageType<DefinitionFieldResponse>(
+    'modlock.wasm.DefinitionFieldResponse',
+    () => [[1, 'value', 2]],
+    {
+      decode: (
+        r: BinaryReader,
+        end: number,
+        m: DefinitionFieldResponse,
+      ): DefinitionFieldResponse => {
+        while (r.pos < end) {
+          const t = r.tag()
+          if ((t & 7) === 4) return m
+          switch (t >>> 3) {
+            case 1:
+              m.value = r.float()
+              break
+            default:
+              r.skip(t)
+          }
+        }
+        return m
+      },
+      encode: (m: DefinitionFieldResponse, w: Writer): void => {
+        {
+          const v = m.value
+          if (v != null && v !== 0) w.uint32(13).float(v)
+        }
+      },
+    },
+  )

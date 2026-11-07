@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <optional>
@@ -14,6 +15,7 @@
 #include "modlock/gameinterop/entity_abi.h"
 #include "modlock/gameinterop/hero_definitions.h"
 #include "modlock/gameinterop/keyvalues.h"
+#include "wasm/modifier_definition.h"
 
 namespace modlock::wasm {
 namespace {
@@ -185,7 +187,35 @@ unsigned char* Locate(unsigned char* definition, const Place& place) {
 // Change applies one entry's properties, fields and copies, keeping what
 // they overwrite in undo, and adds its problems.
 void Change(const Definition& change, unsigned char* definition, void* schema, const char* module,
-            DefinitionUndo& undo, std::vector<std::string>& problems) {
+            const gameinterop::ModuleImage& image, DefinitionUndo& undo,
+            std::vector<std::string>& problems) {
+  if (change.file() == Definition::FILE_MODIFIERS) {
+    if (!change.properties().empty() || !change.copy_fields().empty()) {
+      problems.push_back("modifiers support only direct float fields");
+      return;
+    }
+    std::vector<std::pair<unsigned char*, float>> writes;
+    for (const auto& [path, value] : change.fields()) {
+      auto storage = ResolveModifierFloat(image, schema, module, definition, path);
+      if (!storage || !std::isfinite(value)) {
+        problems.push_back(path + ": " + (!storage ? storage.error() : "value must be finite"));
+        continue;
+      }
+      writes.emplace_back(*storage, value);
+    }
+    if (!problems.empty()) {
+      return;
+    }
+    for (const auto& [storage, value] : writes) {
+      undo.Save(storage, sizeof(value), false);
+      float actual = 0;
+      if (!gameinterop::WriteNative(storage, &value, sizeof(value)) ||
+          !gameinterop::ReadNative(storage, &actual, sizeof(actual)) || actual != value) {
+        problems.push_back("modifier field write or readback failed");
+      }
+    }
+    return;
+  }
   const bool world = change.file() == Definition::FILE_HEROES;
   SetProperties(definition, schema, module,
                 {change.properties().begin(), change.properties().end()}, undo, problems);
@@ -268,8 +298,27 @@ class Entries {
       }
       case Definition::FILE_NPC_UNITS:
         return FindSubclass(units_, gameinterop::AbilityDefinitions::kNpcUnits, change);
-      default:
+      case Definition::FILE_MODIFIERS: {
+        if (!modifier_lookup_) {
+          modifier_lookup_ = gameinterop::ResolveSignature(module_, "vdata.lookup-by-hash");
+        }
+        if (!*modifier_lookup_) {
+          return std::unexpected(Missing{.error = modifier_lookup_->error(), .later = false});
+        }
+        auto definition = FindModifierDefinition(
+            reinterpret_cast<gameinterop::AbilityDefinitions::Lookup>(**modifier_lookup_),
+            change.entry());
+        if (!definition) {
+          return std::unexpected(
+              Missing{.error = definition.error(),
+                      .later = definition.error() == "modifier definition is not loaded"});
+        }
+        return *definition;
+      }
+      case Definition::FILE_ABILITIES:
         return FindSubclass(abilities_, gameinterop::AbilityDefinitions::kAbilities, change);
+      default:
+        return std::unexpected(Missing{.error = "unsupported definition file", .later = false});
     }
   }
 
@@ -299,6 +348,7 @@ class Entries {
   const char* module_name_;
   Subclasses abilities_;
   Subclasses units_;
+  std::optional<std::expected<void*, std::string>> modifier_lookup_;
   std::optional<std::expected<gameinterop::HeroDefinitions, std::string>> heroes_;
   std::optional<std::expected<gameinterop::BotDifficultyDefinitions, std::string>> bots_;
 };
@@ -351,12 +401,34 @@ std::expected<std::vector<std::string>, std::string> ChangeDefinitions(
       continue;
     }
     std::vector<std::string> own;
-    Change(definitions[index], found[index], schema, module_name, undo, own);
+    Change(definitions[index], found[index], schema, module_name, module, undo, own);
     for (auto& problem : own) {
       problems.push_back(definitions[index].entry() + ": " + problem);
     }
   }
   return problems;
+}
+
+std::expected<float, std::string> ReadDefinitionFloat(const gameinterop::ModuleImage& module,
+                                                      void* schema, const char* module_name,
+                                                      const DefinitionFieldOptions& request) {
+  if (request.file() != Definition::FILE_MODIFIERS) {
+    return std::unexpected("definition readback currently supports modifiers only");
+  }
+  Definition definition;
+  definition.set_file(request.file());
+  definition.set_entry(request.entry());
+  Entries entries(module, schema, module_name);
+  auto found = entries.Find(definition);
+  if (!found) {
+    return std::unexpected(found.error().error);
+  }
+  auto storage = ResolveModifierFloat(module, schema, module_name, *found, request.field());
+  float value = 0;
+  if (!storage || !gameinterop::ReadNative(*storage, &value, sizeof(value))) {
+    return std::unexpected(!storage ? storage.error() : "definition readback failed");
+  }
+  return value;
 }
 
 }  // namespace modlock::wasm

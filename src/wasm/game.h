@@ -431,6 +431,8 @@ class Game : public HostService {
 
   // The calls, in the order the Host service declares them.
   std::expected<void, std::string> ServerCommand(const ServerCommandRequest& request) override;
+  std::expected<DefinitionFieldResponse, std::string> ReadDefinitionField(
+      const DefinitionFieldOptions& request) override;
   std::expected<void, std::string> Chat(const effects::ChatRequest& request) override;
   std::expected<void, std::string> CenterText(const effects::CenterTextRequest& request) override;
   std::expected<void, std::string> Announce(const effects::AnnounceRequest& request) override;
@@ -531,6 +533,7 @@ class Game : public HostService {
   std::expected<void, std::string> BlockPlayerInput(
       const wasm::PlayerInputRequest& request) override;
   std::expected<void, std::string> Press(const wasm::PlayerInputRequest& request) override;
+  std::expected<void, std::string> CancelPress(const wasm::PlayerInputRequest& request) override;
   std::expected<void, std::string> WatchInput(const wasm::InputRequest& request) override;
   std::expected<void, std::string> RemapInput(const wasm::RemapInputRequest& request) override;
   std::expected<entities::EntityResponse, std::string> CreateEntity(

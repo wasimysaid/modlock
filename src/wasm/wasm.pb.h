@@ -41,6 +41,7 @@
 #include "input.pb.h"
 #include "handoff.pb.h"
 #include "match.pb.h"
+#include "manifest.pb.h"
 #include "metrics/metrics.pb.h"
 #include "movement/movement.pb.h"
 #include "npcs/npcs.pb.h"

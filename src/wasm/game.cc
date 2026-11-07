@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "modlock/gameinterop/connection_tracker.h"
+#include "wasm/definition_changes.h"
 #include "wasm/game_internal.h"
 
 namespace modlock::wasm {
@@ -299,6 +300,22 @@ bool Game::Departing() {
 
 std::expected<void, std::string> Game::ServerCommand(const ServerCommandRequest& request) {
   return services_.ServerCommand(request.command());
+}
+
+std::expected<DefinitionFieldResponse, std::string> Game::ReadDefinitionField(
+    const DefinitionFieldOptions& request) {
+  auto image = gameinterop::MappedModuleImage::ForModule(L"server.dll");
+  auto schema = gameinterop::ResolveSchemaSystem();
+  if (!image || !schema) {
+    return std::unexpected("definition readback needs the loaded server and schema system");
+  }
+  auto value = ReadDefinitionFloat(*image, *schema, "server.dll", request);
+  if (!value) {
+    return std::unexpected(value.error());
+  }
+  DefinitionFieldResponse response;
+  response.set_value(*value);
+  return response;
 }
 
 std::expected<void, std::string> Game::Chat(const effects::ChatRequest& request) {

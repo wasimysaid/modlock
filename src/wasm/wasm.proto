@@ -13,6 +13,7 @@ import "github.com/paralin/modlock/src/wasm/files.proto";
 import "github.com/paralin/modlock/src/wasm/input.proto";
 import "github.com/paralin/modlock/src/wasm/handoff.proto";
 import "github.com/paralin/modlock/src/wasm/match.proto";
+import "github.com/paralin/modlock/src/wasm/manifest.proto";
 import "github.com/paralin/modlock/src/wasm/metrics/metrics.proto";
 import "github.com/paralin/modlock/src/wasm/movement/movement.proto";
 import "github.com/paralin/modlock/src/wasm/npcs/npcs.proto";
@@ -72,6 +73,10 @@ message Empty {}
 // and returns the language's empty value, so a mod can retry on a later
 // frame instead of stopping.
 service Host {
+  // ReadDefinitionField verifies a modifier definition's currently applied
+  // float value. Unsupported hosts return no value.
+  rpc ReadDefinitionField(DefinitionFieldOptions) returns (DefinitionFieldResponse);
+
   // Log writes one line to the server log under the mod's name.
   rpc Log(LogRequest) returns (Empty);
 
@@ -508,6 +513,10 @@ service Host {
   // Press presses buttons at the player's next input, even through a block.
   // A bot presses them as a player would.
   rpc Press(modlock.wasm.PlayerInputRequest) returns (Empty);
+
+  // CancelPress cancels only the selected queued scripted buttons for this
+  // player. It does not release real keys, change blocks, or undo input already delivered.
+  rpc CancelPress(modlock.wasm.PlayerInputRequest) returns (Empty);
 
   // WatchInput replaces the buttons whose presses and releases arrive as
   // Input events. Watching does not withhold a press; block it with

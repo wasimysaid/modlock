@@ -8,6 +8,7 @@ import * as fieldsPb from '../../src/wasm/fields/fields.pb.js'
 import * as filesPb from '../../src/wasm/files.pb.js'
 import * as handoffPb from '../../src/wasm/handoff.pb.js'
 import * as inputPb from '../../src/wasm/input.pb.js'
+import * as manifestPb from '../../src/wasm/manifest.pb.js'
 import * as matchPb from '../../src/wasm/match.pb.js'
 import * as metricsPb from '../../src/wasm/metrics/metrics.pb.js'
 import * as movementPb from '../../src/wasm/movement/movement.pb.js'
@@ -130,6 +131,23 @@ export type PickupKind =
 const pickupKindValues: Record<PickupKind, entitiesPb.PickupKind> = {
   urn: 0,
   movementBuff: 1,
+}
+
+/** File names a definition file. */
+export type Definition_File =
+  | 'fileAbilities'
+  | 'fileHeroes'
+  | 'fileBotDifficulty'
+  | 'fileNpcUnits'
+  | 'fileModifiers'
+
+/** definitionFileValues encodes each Definition_File. */
+const definitionFileValues: Record<Definition_File, manifestPb.Definition_File> = {
+  fileAbilities: 0,
+  fileHeroes: 1,
+  fileBotDifficulty: 2,
+  fileNpcUnits: 3,
+  fileModifiers: 4,
 }
 
 /** MovementAction is a movement fact the game announced for a hero. */
@@ -1144,6 +1162,41 @@ function fromRiftState(message: matchPb.RiftState): RiftState {
     giveUpTime: message.giveUpTime ?? 0,
     nextSpawn: message.nextSpawn ?? 0,
     spawnWindow: message.spawnWindow ?? 0,
+  }
+}
+
+/** SettingChangedEvent is one player's new value of one setting. */
+export interface SettingChangedEvent {
+  /** player is the player's server slot. */
+  readonly player: Player
+  /** key names the setting. */
+  readonly key: string
+  /** value is the new value. */
+  readonly value: string
+}
+
+/** fromSettingChangedEvent decodes a SettingChangedEvent. */
+function fromSettingChangedEvent(message: settingsPb.SettingChangedEvent): SettingChangedEvent {
+  return {
+    player: Player.of(message.player ?? 0),
+    key: message.key ?? '',
+    value: message.value ?? '',
+  }
+}
+
+/** DefinitionFieldOptions reads a direct float from a modifier definition. */
+export interface DefinitionFieldOptions {
+  file: Definition_File
+  entry: string
+  field: string
+}
+
+/** toDefinitionFieldOptions encodes a DefinitionFieldOptions. */
+function toDefinitionFieldOptions(value: DefinitionFieldOptions): manifestPb.DefinitionFieldOptions {
+  return {
+    file: definitionFileValues[value.file],
+    entry: value.entry,
+    field: value.field,
   }
 }
 
@@ -2268,25 +2321,6 @@ function toBotOptions(value: BotOptions): playersPb.BotOptions {
   }
 }
 
-/** SettingChangedEvent is one player's new value of one setting. */
-export interface SettingChangedEvent {
-  /** player is the player's server slot. */
-  readonly player: Player
-  /** key names the setting. */
-  readonly key: string
-  /** value is the new value. */
-  readonly value: string
-}
-
-/** fromSettingChangedEvent decodes a SettingChangedEvent. */
-function fromSettingChangedEvent(message: settingsPb.SettingChangedEvent): SettingChangedEvent {
-  return {
-    player: Player.of(message.player ?? 0),
-    key: message.key ?? '',
-    value: message.value ?? '',
-  }
-}
-
 /**
  * Wheel reports one wheel step over a slider, anchored to its pointer position.
  */
@@ -2990,6 +3024,14 @@ export class Player {
     return call('Press', inputPb.PlayerInputRequest.toBinary({ player: this.slot, buttons })) !== undefined
   }
 
+  /**
+   * cancelPress cancels only the selected queued scripted buttons for this
+   * player. It does not release real keys, change blocks, or undo input already delivered.
+   */
+  cancelPress(buttons: bigint): boolean {
+    return call('CancelPress', inputPb.PlayerInputRequest.toBinary({ player: this.slot, buttons })) !== undefined
+  }
+
   /** kill kills a player's hero, crediting no one. */
   kill(): boolean {
     return call('Kill', playersPb.PlayerRequest.toBinary({ player: this.slot })) !== undefined
@@ -3174,6 +3216,17 @@ export class Pickup {
     const response = entitiesPb.AliveResponse.fromBinary(reply)
     return response.alive ?? false
   }
+}
+
+/**
+ * readDefinitionField verifies a modifier definition's currently applied
+ * float value. Unsupported hosts return no value.
+ */
+export function readDefinitionField(options: DefinitionFieldOptions): number | undefined {
+  const reply = call('ReadDefinitionField', manifestPb.DefinitionFieldOptions.toBinary(toDefinitionFieldOptions(options)))
+  if (reply === undefined) return undefined
+  const response = manifestPb.DefinitionFieldResponse.fromBinary(reply)
+  return response.value ?? 0
 }
 
 /** log writes one line to the server log under the mod's name. */

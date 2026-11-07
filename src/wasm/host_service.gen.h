@@ -51,6 +51,13 @@ class HostService {
  public:
   virtual ~HostService() = default;
 
+  // ReadDefinitionField verifies a modifier definition's currently applied
+  // float value. Unsupported hosts return no value.
+  virtual std::expected<DefinitionFieldResponse, std::string> ReadDefinitionField(
+      const DefinitionFieldOptions& /*request*/) {
+    return std::unexpected("this host does not support ReadDefinitionField");
+  }
+
   // Log writes one line to the server log under the mod's name.
   virtual std::expected<void, std::string> Log(const LogRequest& /*request*/) {
     return std::unexpected("this host does not support Log");
@@ -698,6 +705,12 @@ class HostService {
     return std::unexpected("this host does not support Press");
   }
 
+  // CancelPress cancels only the selected queued scripted buttons for this
+  // player. It does not release real keys, change blocks, or undo input already delivered.
+  virtual std::expected<void, std::string> CancelPress(const PlayerInputRequest& /*request*/) {
+    return std::unexpected("this host does not support CancelPress");
+  }
+
   // WatchInput replaces the buttons whose presses and releases arrive as
   // Input events. Watching does not withhold a press; block it with
   // BlockInput.
@@ -975,6 +988,14 @@ class HostService {
   Reply Dispatch(const Call& call) {
     using Handler = Reply (*)(HostService&, const std::string&);
     static const std::unordered_map<std::string_view, Handler> handlers = {
+        {"ReadDefinitionField",
+         [](HostService& host, const std::string& bytes) {
+           DefinitionFieldOptions request;
+           if (!request.ParseFromString(bytes)) {
+             return detail::Fail("the ReadDefinitionField request is malformed");
+           }
+           return detail::Answer(host.ReadDefinitionField(request));
+         }},
         {"Log",
          [](HostService& host, const std::string& bytes) {
            LogRequest request;
@@ -1616,6 +1637,14 @@ class HostService {
              return detail::Fail("the Press request is malformed");
            }
            return detail::Answer(host.Press(request));
+         }},
+        {"CancelPress",
+         [](HostService& host, const std::string& bytes) {
+           PlayerInputRequest request;
+           if (!request.ParseFromString(bytes)) {
+             return detail::Fail("the CancelPress request is malformed");
+           }
+           return detail::Answer(host.CancelPress(request));
          }},
         {"WatchInput",
          [](HostService& host, const std::string& bytes) {
