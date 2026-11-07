@@ -130,6 +130,44 @@ const sheet = `/* A board. */
 }
 `
 
+func TestStyleTextureDimensions(t *testing.T) {
+	header := make([]byte, 40)
+	binary.LittleEndian.PutUint16(header, 1)
+	binary.LittleEndian.PutUint16(header[20:], 64)
+	binary.LittleEndian.PutUint16(header[22:], 32)
+	texture, err := resource.Write(1, []resource.Block{{Tag: "DATA", Data: header}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := fstest.MapFS{
+		"panorama/styles/mymod/hud.css":         {Data: []byte(`.Icon { background-image: url("file://{images}/mymod/icon.png"); }`)},
+		"panorama/images/mymod/icon_png.vtex_c": {Data: texture},
+	}
+	out, err := CompileTree("mymod", files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := resource.ReadBlock(out["panorama/styles/mymod/hud.vcss_c"].Data, "DATA")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if binary.LittleEndian.Uint16(data[4:]) != 1 {
+		t.Fatal("missing image reference")
+	}
+	metadata := data[6+bytes.IndexByte(data[6:], 0)+1:]
+	if width, height := binary.LittleEndian.Uint16(metadata), binary.LittleEndian.Uint16(metadata[2:]); width != 64 || height != 32 {
+		t.Fatalf("image reference is %dx%d, want 64x32", width, height)
+	}
+	files["panorama/images/mymod/icon_png.vtex_c"].Data = []byte("truncated")
+	if _, err := CompileTree("mymod", files); err == nil {
+		t.Fatal("accepted a broken local texture")
+	}
+	delete(files, "panorama/images/mymod/icon_png.vtex_c")
+	if _, err := CompileTree("mymod", files); err != nil {
+		t.Fatalf("external game image must remain usable: %v", err)
+	}
+}
+
 // TestStyle compiles a sheet to Valve's minified text with its URLs rewritten,
 // decompiles it to the same text, refuses a URL outside the game's files, and
 // compiles a sheet in a tree.

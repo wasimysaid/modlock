@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
+	"io/fs"
 	"path"
 	"slices"
 	"strings"
@@ -17,21 +18,37 @@ import (
 // with each url() rewritten to the compiled resource the game loads, a table
 // of those resources, and a source map from the text back to the sheet's
 // lines.
-func style(addon, file string, source []byte) ([]byte, error) {
+func style(addon, file string, source []byte, tree fs.FS) ([]byte, error) {
 	sheet, err := minify(source)
 	if err != nil {
 		return nil, errors.Wrap(err, file)
 	}
 
 	// The data block holds the source's checksum, then each referenced
-	// resource with an image's width and height and a hash this compiler
-	// leaves zero, then the text.
+	// resource with an image's width and height and a zero hash, then the text.
 	crc := crc32.ChecksumIEEE(source)
 	data := binary.LittleEndian.AppendUint32(nil, crc)
 	data = binary.LittleEndian.AppendUint16(data, uint16(len(sheet.references)))
 	for _, reference := range sheet.references {
+		var width, height uint16
+		if tree != nil && strings.HasSuffix(reference, ".vtex") {
+			texture, err := fs.ReadFile(tree, reference+"_c")
+			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return nil, errors.Wrap(err, reference)
+			}
+			if err == nil {
+				header, err := resource.ReadBlock(texture, "DATA")
+				if err != nil || len(header) < 28 || binary.LittleEndian.Uint16(header) != 1 {
+					return nil, errors.Errorf("%s: invalid texture header", reference)
+				}
+				width = binary.LittleEndian.Uint16(header[20:])
+				height = binary.LittleEndian.Uint16(header[22:])
+			}
+		}
 		data = append(append(data, reference...), 0)
-		data = append(data, make([]byte, 8)...)
+		data = binary.LittleEndian.AppendUint16(data, width)
+		data = binary.LittleEndian.AppendUint16(data, height)
+		data = binary.LittleEndian.AppendUint32(data, 0)
 	}
 	data = append(data, sheet.text...)
 

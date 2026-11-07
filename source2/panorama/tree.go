@@ -41,7 +41,12 @@ func CompileTree(addon string, tree fs.FS) (fstest.MapFS, error) {
 		}
 
 		// Compile the source, and a sheet's layout beside a sheet.
-		if data, err = Compile(addon, name, data); err != nil {
+		if strings.HasSuffix(name, ".css") {
+			data, err = style(addon, name, data, tree)
+		} else {
+			data, err = Compile(addon, name, data)
+		}
+		if err != nil {
 			return err
 		}
 		if err := add(compiled, data); err != nil {

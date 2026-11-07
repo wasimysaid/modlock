@@ -40,7 +40,7 @@ func Compile(addon, path string, source []byte) ([]byte, error) {
 	case strings.HasSuffix(path, ".js"):
 		return script(addon, path, source)
 	case strings.HasSuffix(path, ".css"):
-		return style(addon, path, source)
+		return style(addon, path, source, nil)
 	default:
 		return nil, errors.Errorf("%s is not a Panorama layout, script or style sheet", path)
 	}
