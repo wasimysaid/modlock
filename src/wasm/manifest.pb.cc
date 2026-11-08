@@ -111,6 +111,24 @@ struct DefinitionFieldOptionsDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT MODLOCK_API
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 DefinitionFieldOptionsDefaultTypeInternal _DefinitionFieldOptions_default_instance_;
 template <typename>
+PROTOBUF_CONSTEXPR Definition_Upgrade_PropertiesEntry_DoNotUse::Definition_Upgrade_PropertiesEntry_DoNotUse(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : Definition_Upgrade_PropertiesEntry_DoNotUse::MapEntry(Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_.base()){}
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : Definition_Upgrade_PropertiesEntry_DoNotUse::MapEntry() {
+}
+#endif  // PROTOBUF_CUSTOM_VTABLE
+struct Definition_Upgrade_PropertiesEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR Definition_Upgrade_PropertiesEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~Definition_Upgrade_PropertiesEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    Definition_Upgrade_PropertiesEntry_DoNotUse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT MODLOCK_API
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 Definition_Upgrade_PropertiesEntry_DoNotUseDefaultTypeInternal _Definition_Upgrade_PropertiesEntry_DoNotUse_default_instance_;
+template <typename>
 PROTOBUF_CONSTEXPR Definition_PropertiesEntry_DoNotUse::Definition_PropertiesEntry_DoNotUse(::_pbi::ConstantInitialized)
 #if defined(PROTOBUF_CUSTOM_VTABLE)
     : Definition_PropertiesEntry_DoNotUse::MapEntry(Definition_PropertiesEntry_DoNotUse_class_data_.base()){}
@@ -165,9 +183,36 @@ struct Definition_CopyFieldsEntry_DoNotUseDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT MODLOCK_API
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 Definition_CopyFieldsEntry_DoNotUseDefaultTypeInternal _Definition_CopyFieldsEntry_DoNotUse_default_instance_;
 
+inline constexpr Definition_Upgrade::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        tier_{0u},
+        properties_{} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR Definition_Upgrade::Definition_Upgrade(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(Definition_Upgrade_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct Definition_UpgradeDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR Definition_UpgradeDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~Definition_UpgradeDefaultTypeInternal() {}
+  union {
+    Definition_Upgrade _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT MODLOCK_API
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 Definition_UpgradeDefaultTypeInternal _Definition_Upgrade_default_instance_;
+
 inline constexpr Definition::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
+        upgrades_{},
         entry_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
@@ -314,18 +359,34 @@ const ::uint32_t
         0,
         1,
         0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_._has_bits_),
+        5, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_.key_),
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_.value_),
+        0,
+        1,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition_Upgrade, _impl_._has_bits_),
+        5, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition_Upgrade, _impl_.tier_),
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition_Upgrade, _impl_.properties_),
+        0,
+        1,
+        0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_._has_bits_),
-        8, // hasbit index offset
+        9, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_.file_),
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_.entry_),
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_.properties_),
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_.fields_),
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_.copy_fields_),
-        1,
-        0,
+        PROTOBUF_FIELD_OFFSET(::modlock::wasm::Definition, _impl_.upgrades_),
         2,
+        1,
         3,
         4,
+        5,
+        0,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::modlock::wasm::DefinitionFieldOptions, _impl_._has_bits_),
         6, // hasbit index offset
@@ -349,9 +410,11 @@ static const ::_pbi::MigrationSchema
         {38, sizeof(::modlock::wasm::Definition_PropertiesEntry_DoNotUse)},
         {45, sizeof(::modlock::wasm::Definition_FieldsEntry_DoNotUse)},
         {52, sizeof(::modlock::wasm::Definition_CopyFieldsEntry_DoNotUse)},
-        {59, sizeof(::modlock::wasm::Definition)},
-        {72, sizeof(::modlock::wasm::DefinitionFieldOptions)},
-        {81, sizeof(::modlock::wasm::DefinitionFieldResponse)},
+        {59, sizeof(::modlock::wasm::Definition_Upgrade_PropertiesEntry_DoNotUse)},
+        {66, sizeof(::modlock::wasm::Definition_Upgrade)},
+        {73, sizeof(::modlock::wasm::Definition)},
+        {88, sizeof(::modlock::wasm::DefinitionFieldOptions)},
+        {97, sizeof(::modlock::wasm::DefinitionFieldResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::modlock::wasm::_Manifest_default_instance_._instance,
@@ -359,6 +422,8 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::modlock::wasm::_Definition_PropertiesEntry_DoNotUse_default_instance_._instance,
     &::modlock::wasm::_Definition_FieldsEntry_DoNotUse_default_instance_._instance,
     &::modlock::wasm::_Definition_CopyFieldsEntry_DoNotUse_default_instance_._instance,
+    &::modlock::wasm::_Definition_Upgrade_PropertiesEntry_DoNotUse_default_instance_._instance,
+    &::modlock::wasm::_Definition_Upgrade_default_instance_._instance,
     &::modlock::wasm::_Definition_default_instance_._instance,
     &::modlock::wasm::_DefinitionFieldOptions_default_instance_._instance,
     &::modlock::wasm::_DefinitionFieldResponse_default_instance_._instance,
@@ -392,25 +457,30 @@ const char descriptor_table_protodef_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwa
     "Movement\022+\n\005model\030\001 \001(\0162\034.modlock.wasm.M"
     "ovement.Model\022\r\n\005scale\030\002 \001(\002\"/\n\005Model\022\020\n"
     "\014MODEL_NATIVE\020\000\022\024\n\020MODEL_QUAKEWORLD\020\001J\004\010"
-    "\003\020\004R\023unpredicted_buttons\"\376\003\n\nDefinition\022"
+    "\003\020\004R\023unpredicted_buttons\"\305\005\n\nDefinition\022"
     "+\n\004file\030\001 \001(\0162\035.modlock.wasm.Definition."
     "File\022\r\n\005entry\030\002 \001(\t\022<\n\nproperties\030\003 \003(\0132"
     "(.modlock.wasm.Definition.PropertiesEntr"
     "y\0224\n\006fields\030\004 \003(\0132$.modlock.wasm.Definit"
     "ion.FieldsEntry\022=\n\013copy_fields\030\005 \003(\0132(.m"
-    "odlock.wasm.Definition.CopyFieldsEntry\0321"
-    "\n\017PropertiesEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030"
-    "\002 \001(\002:\0028\001\032-\n\013FieldsEntry\022\013\n\003key\030\001 \001(\t\022\r\n"
-    "\005value\030\002 \001(\002:\0028\001\0321\n\017CopyFieldsEntry\022\013\n\003k"
-    "ey\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"l\n\004File\022\022\n\016F"
-    "ILE_ABILITIES\020\000\022\017\n\013FILE_HEROES\020\001\022\027\n\023FILE"
-    "_BOT_DIFFICULTY\020\002\022\022\n\016FILE_NPC_UNITS\020\003\022\022\n"
-    "\016FILE_MODIFIERS\020\004\"c\n\026DefinitionFieldOpti"
-    "ons\022+\n\004file\030\001 \001(\0162\035.modlock.wasm.Definit"
-    "ion.File\022\r\n\005entry\030\002 \001(\t\022\r\n\005field\030\003 \001(\t\"("
-    "\n\027DefinitionFieldResponse\022\r\n\005value\030\001 \001(\002"
-    "B*Z(github.com/paralin/modlock/src/wasm;"
-    "wasmb\006proto3"
+    "odlock.wasm.Definition.CopyFieldsEntry\0222"
+    "\n\010upgrades\030\006 \003(\0132 .modlock.wasm.Definiti"
+    "on.Upgrade\0321\n\017PropertiesEntry\022\013\n\003key\030\001 \001"
+    "(\t\022\r\n\005value\030\002 \001(\002:\0028\001\032-\n\013FieldsEntry\022\013\n\003"
+    "key\030\001 \001(\t\022\r\n\005value\030\002 \001(\002:\0028\001\0321\n\017CopyFiel"
+    "dsEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\032"
+    "\220\001\n\007Upgrade\022\014\n\004tier\030\001 \001(\r\022D\n\nproperties\030"
+    "\002 \003(\01320.modlock.wasm.Definition.Upgrade."
+    "PropertiesEntry\0321\n\017PropertiesEntry\022\013\n\003ke"
+    "y\030\001 \001(\t\022\r\n\005value\030\002 \001(\002:\0028\001\"l\n\004File\022\022\n\016FI"
+    "LE_ABILITIES\020\000\022\017\n\013FILE_HEROES\020\001\022\027\n\023FILE_"
+    "BOT_DIFFICULTY\020\002\022\022\n\016FILE_NPC_UNITS\020\003\022\022\n\016"
+    "FILE_MODIFIERS\020\004\"c\n\026DefinitionFieldOptio"
+    "ns\022+\n\004file\030\001 \001(\0162\035.modlock.wasm.Definiti"
+    "on.File\022\r\n\005entry\030\002 \001(\t\022\r\n\005field\030\003 \001(\t\"(\n"
+    "\027DefinitionFieldResponse\022\r\n\005value\030\001 \001(\002B"
+    "*Z(github.com/paralin/modlock/src/wasm;w"
+    "asmb\006proto3"
 };
 static const ::_pbi::DescriptorTable* PROTOBUF_NONNULL const
     descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto_deps[3] = {
@@ -422,13 +492,13 @@ static ::absl::once_flag descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto = {
     false,
     false,
-    1812,
+    2011,
     descriptor_table_protodef_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto,
     "github.com/paralin/modlock/src/wasm/manifest.proto",
     &descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto_once,
     descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto_deps,
     3,
-    8,
+    10,
     schemas,
     file_default_instances,
     TableStruct_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto::offsets,
@@ -1871,6 +1941,438 @@ Definition_CopyFieldsEntry_DoNotUse::_table_ = {
 };
 // ===================================================================
 
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+Definition_Upgrade_PropertiesEntry_DoNotUse::Definition_Upgrade_PropertiesEntry_DoNotUse()
+    : SuperType(Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_.base()) {}
+Definition_Upgrade_PropertiesEntry_DoNotUse::Definition_Upgrade_PropertiesEntry_DoNotUse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+    : SuperType(arena, Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_.base()) {}
+#else   // PROTOBUF_CUSTOM_VTABLE
+Definition_Upgrade_PropertiesEntry_DoNotUse::Definition_Upgrade_PropertiesEntry_DoNotUse() : SuperType() {}
+Definition_Upgrade_PropertiesEntry_DoNotUse::Definition_Upgrade_PropertiesEntry_DoNotUse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena) : SuperType(arena) {}
+#endif  // PROTOBUF_CUSTOM_VTABLE
+inline void* PROTOBUF_NONNULL Definition_Upgrade_PropertiesEntry_DoNotUse::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) Definition_Upgrade_PropertiesEntry_DoNotUse(arena);
+}
+constexpr auto Definition_Upgrade_PropertiesEntry_DoNotUse::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(Definition_Upgrade_PropertiesEntry_DoNotUse),
+                                            alignof(Definition_Upgrade_PropertiesEntry_DoNotUse));
+}
+constexpr auto Definition_Upgrade_PropertiesEntry_DoNotUse::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_Definition_Upgrade_PropertiesEntry_DoNotUse_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &Definition_Upgrade_PropertiesEntry_DoNotUse::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<Definition_Upgrade_PropertiesEntry_DoNotUse>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &Definition_Upgrade_PropertiesEntry_DoNotUse::SharedDtor,
+          static_cast<void (::google::protobuf::MessageLite::*)()>(&Definition_Upgrade_PropertiesEntry_DoNotUse::ClearImpl),
+              ::google::protobuf::Message::ByteSizeLongImpl, ::google::protobuf::Message::_InternalSerializeImpl
+              ,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_._cached_size_),
+          false,
+      },
+      &Definition_Upgrade_PropertiesEntry_DoNotUse::kDescriptorMethods,
+      &descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_ =
+        Definition_Upgrade_PropertiesEntry_DoNotUse::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+Definition_Upgrade_PropertiesEntry_DoNotUse::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_.tc_table);
+  return Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<1, 2, 0, 59, 2>
+Definition_Upgrade_PropertiesEntry_DoNotUse::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_._has_bits_),
+    0, // no _extensions_
+    2, 8,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967292,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    2,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::DiscardEverythingFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::modlock::wasm::Definition_Upgrade_PropertiesEntry_DoNotUse>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // float value = 2;
+    {::_pbi::TcParser::FastF32S1,
+     {21, 1, 0,
+      PROTOBUF_FIELD_OFFSET(Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_.value_)}},
+    // string key = 1;
+    {::_pbi::TcParser::FastUS1,
+     {10, 0, 0,
+      PROTOBUF_FIELD_OFFSET(Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_.key_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // string key = 1;
+    {PROTOBUF_FIELD_OFFSET(Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_.key_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // float value = 2;
+    {PROTOBUF_FIELD_OFFSET(Definition_Upgrade_PropertiesEntry_DoNotUse, _impl_.value_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
+  }},
+  // no aux_entries
+  {{
+    "\57\3\0\0\0\0\0\0"
+    "modlock.wasm.Definition.Upgrade.PropertiesEntry"
+    "key"
+  }},
+};
+// ===================================================================
+
+class Definition_Upgrade::_Internal {
+ public:
+  using HasBits =
+      decltype(::std::declval<Definition_Upgrade>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_._has_bits_);
+};
+
+Definition_Upgrade::Definition_Upgrade(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, Definition_Upgrade_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:modlock.wasm.Definition.Upgrade)
+}
+PROTOBUF_NDEBUG_INLINE Definition_Upgrade::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::modlock::wasm::Definition_Upgrade& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        properties_{visibility, arena, from.properties_} {}
+
+Definition_Upgrade::Definition_Upgrade(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const Definition_Upgrade& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, Definition_Upgrade_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  Definition_Upgrade* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.tier_ = from._impl_.tier_;
+
+  // @@protoc_insertion_point(copy_constructor:modlock.wasm.Definition.Upgrade)
+}
+PROTOBUF_NDEBUG_INLINE Definition_Upgrade::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        properties_{visibility, arena} {}
+
+inline void Definition_Upgrade::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.tier_ = {};
+}
+Definition_Upgrade::~Definition_Upgrade() {
+  // @@protoc_insertion_point(destructor:modlock.wasm.Definition.Upgrade)
+  SharedDtor(*this);
+}
+inline void Definition_Upgrade::SharedDtor(MessageLite& self) {
+  Definition_Upgrade& this_ = static_cast<Definition_Upgrade&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL Definition_Upgrade::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) Definition_Upgrade(arena);
+}
+constexpr auto Definition_Upgrade::InternalNewImpl_() {
+  constexpr auto arena_bits = ::google::protobuf::internal::EncodePlacementArenaOffsets({
+      PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_.properties_) +
+          decltype(Definition_Upgrade::_impl_.properties_)::
+              InternalGetArenaOffset(
+                  ::google::protobuf::Message::internal_visibility()),
+  });
+  if (arena_bits.has_value()) {
+    return ::google::protobuf::internal::MessageCreator::CopyInit(
+        sizeof(Definition_Upgrade), alignof(Definition_Upgrade), *arena_bits);
+  } else {
+    return ::google::protobuf::internal::MessageCreator(&Definition_Upgrade::PlacementNew_,
+                                 sizeof(Definition_Upgrade),
+                                 alignof(Definition_Upgrade));
+  }
+}
+constexpr auto Definition_Upgrade::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_Definition_Upgrade_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &Definition_Upgrade::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<Definition_Upgrade>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &Definition_Upgrade::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<Definition_Upgrade>(), &Definition_Upgrade::ByteSizeLong,
+              &Definition_Upgrade::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_._cached_size_),
+          false,
+      },
+      &Definition_Upgrade::kDescriptorMethods,
+      &descriptor_table_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull Definition_Upgrade_class_data_ =
+        Definition_Upgrade::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+Definition_Upgrade::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&Definition_Upgrade_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(Definition_Upgrade_class_data_.tc_table);
+  return Definition_Upgrade_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 2, 1, 50, 2>
+Definition_Upgrade::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_._has_bits_),
+    0, // no _extensions_
+    2, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967292,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    2,  // num_field_entries
+    1,  // num_aux_entries
+    offsetof(decltype(_table_), aux_entries),
+    Definition_Upgrade_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::modlock::wasm::Definition_Upgrade>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // uint32 tier = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(Definition_Upgrade, _impl_.tier_), 0>(),
+     {8, 0, 0,
+      PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_.tier_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // uint32 tier = 1;
+    {PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_.tier_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+    // map<string, float> properties = 2;
+    {PROTOBUF_FIELD_OFFSET(Definition_Upgrade, _impl_.properties_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
+  }},
+  {{
+      {::_pbi::TcParser::GetMapAuxInfo(
+          1, 0, 9, 2, 0)},
+  }},
+  {{
+    "\37\0\12\0\0\0\0\0"
+    "modlock.wasm.Definition.Upgrade"
+    "properties"
+  }},
+};
+PROTOBUF_NOINLINE void Definition_Upgrade::Clear() {
+// @@protoc_insertion_point(message_clear_start:modlock.wasm.Definition.Upgrade)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    _impl_.tier_ = 0u;
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000002U)) {
+      _impl_.properties_.Clear();
+    }
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL Definition_Upgrade::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const Definition_Upgrade& this_ = static_cast<const Definition_Upgrade&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL Definition_Upgrade::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const Definition_Upgrade& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:modlock.wasm.Definition.Upgrade)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // uint32 tier = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (this_._internal_tier() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          1, this_._internal_tier(), target);
+    }
+  }
+
+  // map<string, float> properties = 2;
+  if (CheckHasBitForRepeated(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_properties().empty()) {
+      using MapType = ::google::protobuf::Map<::std::string, float>;
+      using WireHelper = _pbi::MapEntryFuncs<::std::string, float,
+                                     _pbi::WireFormatLite::TYPE_STRING,
+                                     _pbi::WireFormatLite::TYPE_FLOAT>;
+      const auto& field = this_._internal_properties();
+
+      if (stream->IsSerializationDeterministic() && field.size() > 1) {
+        for (const auto& entry : ::google::protobuf::internal::MapSorterPtr<MapType>(field)) {
+          target = WireHelper::InternalSerialize(
+              2, entry.first, entry.second, target, stream);
+          ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+              entry.first.data(), static_cast<int>(entry.first.length()),
+ ::google::protobuf::internal::WireFormatLite::SERIALIZE, "modlock.wasm.Definition.Upgrade.properties");
+        }
+      } else {
+        for (const auto& entry : field) {
+          target = WireHelper::InternalSerialize(
+              2, entry.first, entry.second, target, stream);
+          ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+              entry.first.data(), static_cast<int>(entry.first.length()),
+ ::google::protobuf::internal::WireFormatLite::SERIALIZE, "modlock.wasm.Definition.Upgrade.properties");
+        }
+      }
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:modlock.wasm.Definition.Upgrade)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t Definition_Upgrade::ByteSizeLong(const MessageLite& base) {
+  const Definition_Upgrade& this_ = static_cast<const Definition_Upgrade&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t Definition_Upgrade::ByteSizeLong() const {
+  const Definition_Upgrade& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:modlock.wasm.Definition.Upgrade)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    // uint32 tier = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (this_._internal_tier() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_tier());
+      }
+    }
+    // map<string, float> properties = 2;
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000002U)) {
+      total_size +=
+          1 * ::google::protobuf::internal::FromIntSize(this_._internal_properties_size());
+      for (const auto& entry : this_._internal_properties()) {
+        total_size += _pbi::MapEntryFuncs<::std::string, float,
+                                       _pbi::WireFormatLite::TYPE_STRING,
+                                       _pbi::WireFormatLite::TYPE_FLOAT>::ByteSizeLong(entry.first, entry.second);
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void Definition_Upgrade::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                            const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this =
+      static_cast<Definition_Upgrade*>(&to_msg);
+  auto& from = static_cast<const Definition_Upgrade&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:modlock.wasm.Definition.Upgrade)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (from._internal_tier() != 0) {
+        _this->_impl_.tier_ = from._impl_.tier_;
+      }
+    }
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000002U)) {
+      _this->_impl_.properties_.MergeFrom(from._impl_.properties_);
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void Definition_Upgrade::CopyFrom(const Definition_Upgrade& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:modlock.wasm.Definition.Upgrade)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void Definition_Upgrade::InternalSwap(Definition_Upgrade* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  swap(_impl_.tier_, other->_impl_.tier_);
+  _impl_.properties_.InternalSwap(&other->_impl_.properties_);
+}
+
+::google::protobuf::Metadata Definition_Upgrade::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 class Definition::_Internal {
  public:
   using HasBits =
@@ -1894,6 +2396,7 @@ PROTOBUF_NDEBUG_INLINE Definition::Impl_::Impl_(
     [[maybe_unused]] const ::modlock::wasm::Definition& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
+        upgrades_{visibility, arena, from.upgrades_},
         entry_(arena, from.entry_),
         properties_{visibility, arena, from.properties_},
         fields_{visibility, arena, from.fields_},
@@ -1920,6 +2423,7 @@ PROTOBUF_NDEBUG_INLINE Definition::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
+        upgrades_{visibility, arena},
         entry_(arena),
         properties_{visibility, arena},
         fields_{visibility, arena},
@@ -1961,6 +2465,10 @@ constexpr auto Definition::InternalNewImpl_() {
                   ::google::protobuf::Message::internal_visibility()),
       PROTOBUF_FIELD_OFFSET(Definition, _impl_.copy_fields_) +
           decltype(Definition::_impl_.copy_fields_)::
+              InternalGetArenaOffset(
+                  ::google::protobuf::Message::internal_visibility()),
+      PROTOBUF_FIELD_OFFSET(Definition, _impl_.upgrades_) +
+          decltype(Definition::_impl_.upgrades_)::
               InternalGetArenaOffset(
                   ::google::protobuf::Message::internal_visibility()),
   });
@@ -2007,17 +2515,17 @@ Definition::GetClassData() const {
   return Definition_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<1, 5, 3, 64, 2>
+const ::_pbi::TcParseTable<3, 6, 4, 64, 2>
 Definition::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(Definition, _impl_._has_bits_),
     0, // no _extensions_
-    5, 8,  // max_field_number, fast_idx_mask
+    6, 56,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967264,  // skipmap
+    4294967232,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    5,  // num_field_entries
-    3,  // num_aux_entries
+    6,  // num_field_entries
+    4,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     Definition_class_data_.base(),
     nullptr,  // post_loop_handler
@@ -2026,29 +2534,41 @@ Definition::_table_ = {
     ::_pbi::TcParser::GetTable<::modlock::wasm::Definition>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+    // .modlock.wasm.Definition.File file = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(Definition, _impl_.file_), 2>(),
+     {8, 2, 0,
+      PROTOBUF_FIELD_OFFSET(Definition, _impl_.file_)}},
     // string entry = 2;
     {::_pbi::TcParser::FastUS1,
-     {18, 0, 0,
+     {18, 1, 0,
       PROTOBUF_FIELD_OFFSET(Definition, _impl_.entry_)}},
-    // .modlock.wasm.Definition.File file = 1;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(Definition, _impl_.file_), 1>(),
-     {8, 1, 0,
-      PROTOBUF_FIELD_OFFSET(Definition, _impl_.file_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    // repeated .modlock.wasm.Definition.Upgrade upgrades = 6;
+    {::_pbi::TcParser::FastMtR1,
+     {50, 0, 0,
+      PROTOBUF_FIELD_OFFSET(Definition, _impl_.upgrades_)}},
+    {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
     // .modlock.wasm.Definition.File file = 1;
-    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.file_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kOpenEnum)},
+    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.file_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kOpenEnum)},
     // string entry = 2;
-    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.entry_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.entry_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
     // map<string, float> properties = 3;
-    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.properties_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
+    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.properties_), _Internal::kHasBitsOffset + 3, 1, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
     // map<string, float> fields = 4;
-    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.fields_), _Internal::kHasBitsOffset + 3, 1, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
+    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.fields_), _Internal::kHasBitsOffset + 4, 2, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
     // map<string, string> copy_fields = 5;
-    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.copy_fields_), _Internal::kHasBitsOffset + 4, 2, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
+    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.copy_fields_), _Internal::kHasBitsOffset + 5, 3, (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
+    // repeated .modlock.wasm.Definition.Upgrade upgrades = 6;
+    {PROTOBUF_FIELD_OFFSET(Definition, _impl_.upgrades_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
   }},
   {{
+      {::_pbi::TcParser::GetTable<::modlock::wasm::Definition_Upgrade>()},
       {::_pbi::TcParser::GetMapAuxInfo(
           1, 0, 9, 2, 0)},
       {::_pbi::TcParser::GetMapAuxInfo(
@@ -2073,18 +2593,23 @@ PROTOBUF_NOINLINE void Definition::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
-    _impl_.entry_.ClearNonDefaultToEmpty();
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000001U)) {
+      _impl_.upgrades_.Clear();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.entry_.ClearNonDefaultToEmpty();
+    }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x0000001eU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003cU)) {
     _impl_.file_ = 0;
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
       _impl_.properties_.Clear();
     }
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
       _impl_.fields_.Clear();
     }
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000020U)) {
       _impl_.copy_fields_.Clear();
     }
   }
@@ -2112,7 +2637,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
 
   cached_has_bits = this_._impl_._has_bits_[0];
   // .modlock.wasm.Definition.File file = 1;
-  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
     if (this_._internal_file() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteEnumToArray(
@@ -2121,7 +2646,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
   }
 
   // string entry = 2;
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
     if (!this_._internal_entry().empty()) {
       const ::std::string& _s = this_._internal_entry();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
@@ -2131,7 +2656,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
   }
 
   // map<string, float> properties = 3;
-  if (CheckHasBitForRepeated(cached_has_bits, 0x00000004U)) {
+  if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
     if (!this_._internal_properties().empty()) {
       using MapType = ::google::protobuf::Map<::std::string, float>;
       using WireHelper = _pbi::MapEntryFuncs<::std::string, float,
@@ -2160,7 +2685,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
   }
 
   // map<string, float> fields = 4;
-  if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
+  if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
     if (!this_._internal_fields().empty()) {
       using MapType = ::google::protobuf::Map<::std::string, float>;
       using WireHelper = _pbi::MapEntryFuncs<::std::string, float,
@@ -2189,7 +2714,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
   }
 
   // map<string, string> copy_fields = 5;
-  if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
+  if (CheckHasBitForRepeated(cached_has_bits, 0x00000020U)) {
     if (!this_._internal_copy_fields().empty()) {
       using MapType = ::google::protobuf::Map<::std::string, ::std::string>;
       using WireHelper = _pbi::MapEntryFuncs<::std::string, ::std::string,
@@ -2223,6 +2748,19 @@ PROTOBUF_NOINLINE void Definition::Clear() {
     }
   }
 
+  // repeated .modlock.wasm.Definition.Upgrade upgrades = 6;
+  if (CheckHasBitForRepeated(cached_has_bits, 0x00000001U)) {
+    for (unsigned i = 0, n = static_cast<unsigned>(
+                             this_._internal_upgrades_size());
+         i < n; i++) {
+      const auto& repfield = this_._internal_upgrades().Get(i);
+      target =
+          ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+              6, repfield, repfield.GetCachedSize(),
+              target, stream);
+    }
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -2248,23 +2786,30 @@ PROTOBUF_NOINLINE void Definition::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
+    // repeated .modlock.wasm.Definition.Upgrade upgrades = 6;
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000001U)) {
+      total_size += 1UL * this_._internal_upgrades_size();
+      for (const auto& msg : this_._internal_upgrades()) {
+        total_size += ::google::protobuf::internal::WireFormatLite::MessageSize(msg);
+      }
+    }
     // string entry = 2;
-    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
       if (!this_._internal_entry().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_entry());
       }
     }
     // .modlock.wasm.Definition.File file = 1;
-    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (this_._internal_file() != 0) {
         total_size += 1 +
                       ::_pbi::WireFormatLite::EnumSize(this_._internal_file());
       }
     }
     // map<string, float> properties = 3;
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
       total_size +=
           1 * ::google::protobuf::internal::FromIntSize(this_._internal_properties_size());
       for (const auto& entry : this_._internal_properties()) {
@@ -2274,7 +2819,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
       }
     }
     // map<string, float> fields = 4;
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
       total_size +=
           1 * ::google::protobuf::internal::FromIntSize(this_._internal_fields_size());
       for (const auto& entry : this_._internal_fields()) {
@@ -2284,7 +2829,7 @@ PROTOBUF_NOINLINE void Definition::Clear() {
       }
     }
     // map<string, string> copy_fields = 5;
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000020U)) {
       total_size +=
           1 * ::google::protobuf::internal::FromIntSize(this_._internal_copy_fields_size());
       for (const auto& entry : this_._internal_copy_fields()) {
@@ -2306,14 +2851,20 @@ void Definition::MergeImpl(::google::protobuf::MessageLite& to_msg,
   if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
     from.CheckHasBitConsistency();
   }
+  ::google::protobuf::Arena* arena = _this->GetArena();
   // @@protoc_insertion_point(class_specific_merge_from_start:modlock.wasm.Definition)
   ABSL_DCHECK_NE(&from, _this);
   ::uint32_t cached_has_bits = 0;
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
-    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000001U)) {
+      _this->_internal_mutable_upgrades()->InternalMergeFromWithArena(
+          ::google::protobuf::MessageLite::internal_visibility(), arena,
+          from._internal_upgrades());
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
       if (!from._internal_entry().empty()) {
         _this->_internal_set_entry(from._internal_entry());
       } else {
@@ -2322,18 +2873,18 @@ void Definition::MergeImpl(::google::protobuf::MessageLite& to_msg,
         }
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (from._internal_file() != 0) {
         _this->_impl_.file_ = from._impl_.file_;
       }
     }
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
       _this->_impl_.properties_.MergeFrom(from._impl_.properties_);
     }
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
       _this->_impl_.fields_.MergeFrom(from._impl_.fields_);
     }
-    if (CheckHasBitForRepeated(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBitForRepeated(cached_has_bits, 0x00000020U)) {
       _this->_impl_.copy_fields_.MergeFrom(from._impl_.copy_fields_);
     }
   }
@@ -2356,6 +2907,7 @@ void Definition::InternalSwap(Definition* PROTOBUF_RESTRICT PROTOBUF_NONNULL oth
   ABSL_DCHECK_EQ(arena, other->GetArena());
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.upgrades_.InternalSwap(&other->_impl_.upgrades_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entry_, &other->_impl_.entry_, arena);
   swap(_impl_.file_, other->_impl_.file_);
   _impl_.properties_.InternalSwap(&other->_impl_.properties_);

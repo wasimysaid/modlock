@@ -15,6 +15,7 @@
 #include "modlock/gameinterop/entity_abi.h"
 #include "modlock/gameinterop/hero_definitions.h"
 #include "modlock/gameinterop/keyvalues.h"
+#include "wasm/ability_upgrades.h"
 #include "wasm/modifier_definition.h"
 
 namespace modlock::wasm {
@@ -189,6 +190,18 @@ unsigned char* Locate(unsigned char* definition, const Place& place) {
 void Change(const Definition& change, unsigned char* definition, void* schema, const char* module,
             const gameinterop::ModuleImage& image, DefinitionUndo& undo,
             std::vector<std::string>& problems) {
+  if (!change.upgrades().empty()) {
+    auto layout = ResolveAbilityUpgradeLayout(schema, module);
+    if (!layout) {
+      problems.push_back(layout.error());
+      return;
+    }
+    auto applied = ApplyAbilityUpgrades(definition, change, *layout, undo);
+    if (!applied) {
+      problems.push_back(applied.error());
+    }
+    return;
+  }
   if (change.file() == Definition::FILE_MODIFIERS) {
     if (!change.properties().empty() || !change.copy_fields().empty()) {
       problems.push_back("modifiers support only direct float fields");
@@ -356,10 +369,16 @@ class Entries {
 }  // namespace
 
 void DefinitionUndo::Save(unsigned char* storage, size_t size, bool world) {
+  SaveValue(storage, {storage, size}, world);
+}
+
+void DefinitionUndo::SaveValue(unsigned char* storage, std::span<const unsigned char> value,
+                               bool world) {
   if (std::ranges::any_of(saved_, [&](const Saved& saved) { return saved.storage == storage; })) {
     return;
   }
-  saved_.push_back(Saved{.storage = storage, .value = {storage, storage + size}, .world = world});
+  saved_.push_back(
+      Saved{.storage = storage, .value = {value.begin(), value.end()}, .world = world});
 }
 
 void DefinitionUndo::Restore() {
@@ -385,6 +404,11 @@ std::expected<std::vector<std::string>, std::string> ChangeDefinitions(
   std::vector<unsigned char*> found;
   std::vector<std::string> problems;
   for (const auto& change : definitions) {
+    if (auto valid = ValidateAbilityUpgrades(change); !valid) {
+      problems.push_back(change.entry() + ": " + valid.error());
+      found.push_back(nullptr);
+      continue;
+    }
     auto definition = entries.Find(change);
     if (!definition && definition.error().later) {
       return std::unexpected(change.entry() + ": " + definition.error().error);

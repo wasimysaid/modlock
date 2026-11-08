@@ -191,6 +191,7 @@ add_library(modlock_sdk SHARED
   src/wasm/runtime.cc
   src/wasm/definition_changes.cc
   src/wasm/modifier_definition.cc
+  src/wasm/ability_upgrades.cc
   src/wasm/game.cc
   src/wasm/game_combat.cc
   src/wasm/game_effects.cc
@@ -537,10 +538,15 @@ if(BUILD_TESTING)
   target_link_libraries(ability_definitions_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME ability_definitions_test COMMAND ability_definitions_test)
   add_executable(modifier_definition_test tests/modifier_definition_test.cc
-    src/wasm/modifier_definition.cc src/wasm/definition_changes.cc)
+    src/wasm/modifier_definition.cc src/wasm/definition_changes.cc src/wasm/ability_upgrades.cc)
   target_include_directories(modifier_definition_test PRIVATE src)
   target_link_libraries(modifier_definition_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME modifier_definition_test COMMAND modifier_definition_test)
+  add_executable(ability_upgrades_test tests/ability_upgrades_test.cc
+    src/wasm/ability_upgrades.cc src/wasm/definition_changes.cc src/wasm/modifier_definition.cc)
+  target_include_directories(ability_upgrades_test PRIVATE src)
+  target_link_libraries(ability_upgrades_test PRIVATE modlock::sdk gtest_main)
+  add_test(NAME ability_upgrades_test COMMAND ability_upgrades_test)
   add_executable(ability_input_hook_test tests/ability_input_hook_test.cc)
   target_link_libraries(ability_input_hook_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME ability_input_hook_test COMMAND ability_input_hook_test)

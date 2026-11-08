@@ -109,7 +109,6 @@ client loaded a replacement package.
 
 ## Remaining integration checks
 
-- Validate and test the native tier writer before treating it as a maintained API.
 - Preserve paid ranks and points across pawn replacement and match reset.
 - Keep tooltip values synchronized with the actual native rank and cooldown owner.
 - Verify bonus removal with a positive control before enabling a combat mode.
@@ -117,3 +116,46 @@ client loaded a replacement package.
 
 Snow Globe flight and detonation HUD tests are deferred. A throw-only design is
 an option, not an implemented change.
+
+## Maintained fork verification
+
+The hardened writer was rebuilt with upstream `d54df29` and the retained Bebop
+extensions on 2026-11-08. The fresh Linux CLI, embedded scripting library and
+renderer, complete Windows host build, Go package tests and TypeScript checks
+passed. The full build also compiled the Go example after fixing a nested-enum
+constant naming defect in the SDK generator.
+
+All 33 selected native tests passed under Proton: 15 tier-definition tests,
+6 modifier tests, 7 queued-input tests, 1 input-hook test and 4 console-variable
+tests. Tier fixtures cover rejection before native lookup, malformed schema and
+vectors, bounded names, overlapping storage, finite values, partial writes,
+readback failure, rollback failure reporting, and unload restoration after
+repeated applications and world changes.
+
+A fresh off-screen Deadlock session loaded six definition entries with zero
+reported problems. Real native key purchases reproduced the 1/2/5 costs and
+upgrade masks. Actual throws reproduced these server measurements:
+
+| Rank | Cooldown duration | Maximum travel time |
+| --- | --- | --- |
+| Base | 5.0s | 0.4144218862s |
+| Tier 2 | 5.0s | 0.4973062575s |
+| Tier 3 | 4.5s | 0.4973062575s |
+
+The upgraded Hook caught the stationary bot at about 34m. Resetting to the base
+rank and repeating the same positions and aim missed, with the bot remaining
+alive. This repeated the range behavior on the maintained writer.
+
+Buying tier 3 during a running cooldown also changed that timer. Its endpoint
+moved from 67.015625 to 66.8249969 seconds, and its start value changed too.
+The next actual throw separately confirmed the 4.5-second duration. A probe
+that treats every cooldown-start change as a cast therefore reports a false
+cast on that upgrade. Gameplay should use executed-ability observations for
+cast attribution and decide explicitly whether to accept native cooldown
+adjustments when buying ranks. A future-throws-only rule is not supplied by
+the native upgrade path.
+
+These checks establish the tier layout and behavior on this installed game.
+They do not establish compatibility with future game builds, client prediction,
+or delivery to a clean second installation. The installed Bebop runtime and its
+version lock were not replaced by this verification build.

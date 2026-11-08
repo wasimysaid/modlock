@@ -132,10 +132,16 @@ func (w *goWriter) writeEnum(e *enum) {
 	writeComment(&w.out, "", "//", e.doc)
 	fmt.Fprintf(&w.out, "type %s = %s\n\n", e.name, w.pb(e.file, e.name))
 	fmt.Fprintf(&w.out, "// The values of %s.\nconst (\n", e.name)
+	// Protobuf scopes nested enum values to their containing message.
+	valuePrefix := e.name
+	relative := strings.TrimPrefix(e.full, "."+e.file.pkg+".")
+	if index := strings.LastIndexByte(relative, '.'); index >= 0 {
+		valuePrefix = strings.ReplaceAll(relative[:index], ".", "_")
+	}
 	for _, v := range e.named() {
 		name := e.name + camel(e.valueName(v))
 		writeComment(&w.out, "\t", "//", rename(v.doc, v.name, name))
-		fmt.Fprintf(&w.out, "\t%s = %s\n", name, w.pb(e.file, e.name+"_"+v.name))
+		fmt.Fprintf(&w.out, "\t%s = %s\n", name, w.pb(e.file, valuePrefix+"_"+v.name))
 	}
 	w.out.WriteString(")\n\n")
 }

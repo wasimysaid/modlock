@@ -96,6 +96,14 @@ class Definition_PropertiesEntry_DoNotUse;
 struct Definition_PropertiesEntry_DoNotUseDefaultTypeInternal;
 MODLOCK_API extern Definition_PropertiesEntry_DoNotUseDefaultTypeInternal _Definition_PropertiesEntry_DoNotUse_default_instance_;
 MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_PropertiesEntry_DoNotUse_class_data_;
+class Definition_Upgrade;
+struct Definition_UpgradeDefaultTypeInternal;
+MODLOCK_API extern Definition_UpgradeDefaultTypeInternal _Definition_Upgrade_default_instance_;
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_Upgrade_class_data_;
+class Definition_Upgrade_PropertiesEntry_DoNotUse;
+struct Definition_Upgrade_PropertiesEntry_DoNotUseDefaultTypeInternal;
+MODLOCK_API extern Definition_Upgrade_PropertiesEntry_DoNotUseDefaultTypeInternal _Definition_Upgrade_PropertiesEntry_DoNotUse_default_instance_;
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_;
 class Manifest;
 struct ManifestDefaultTypeInternal;
 MODLOCK_API extern ManifestDefaultTypeInternal _Manifest_default_instance_;
@@ -562,7 +570,7 @@ class MODLOCK_API DefinitionFieldResponse final : public ::google::protobuf::Mes
     return *reinterpret_cast<const DefinitionFieldResponse*>(
         &_DefinitionFieldResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 7;
+  static constexpr int kIndexInFileMessages = 9;
   friend void swap(DefinitionFieldResponse& a, DefinitionFieldResponse& b) { a.Swap(&b); }
   inline void Swap(DefinitionFieldResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -752,7 +760,7 @@ class MODLOCK_API DefinitionFieldOptions final : public ::google::protobuf::Mess
     return *reinterpret_cast<const DefinitionFieldOptions*>(
         &_DefinitionFieldOptions_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 6;
+  static constexpr int kIndexInFileMessages = 8;
   friend void swap(DefinitionFieldOptions& a, DefinitionFieldOptions& b) { a.Swap(&b); }
   inline void Swap(DefinitionFieldOptions* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -921,6 +929,45 @@ class MODLOCK_API DefinitionFieldOptions final : public ::google::protobuf::Mess
 MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull DefinitionFieldOptions_class_data_;
 // -------------------------------------------------------------------
 
+class Definition_Upgrade_PropertiesEntry_DoNotUse final
+    : public ::google::protobuf::internal::MapEntry<::std::string, float,
+                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+                             ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT> {
+ public:
+  using SuperType =
+      ::google::protobuf::internal::MapEntry<::std::string, float,
+                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+                      ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>;
+  Definition_Upgrade_PropertiesEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR Definition_Upgrade_PropertiesEntry_DoNotUse(::google::protobuf::internal::ConstantInitialized);
+  explicit Definition_Upgrade_PropertiesEntry_DoNotUse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr const void* PROTOBUF_NONNULL internal_default_instance() {
+    return &_Definition_Upgrade_PropertiesEntry_DoNotUse_default_instance_;
+  }
+
+
+  static constexpr auto InternalGenerateClassData_();
+
+ private:
+  friend class ::google::protobuf::MessageLite;
+  friend struct ::TableStruct_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto;
+
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<1, 2,
+                                   0, 59,
+                                   2>
+      _table_;
+
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+};
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_Upgrade_PropertiesEntry_DoNotUse_class_data_;
+// -------------------------------------------------------------------
+
 class Definition_PropertiesEntry_DoNotUse final
     : public ::google::protobuf::internal::MapEntry<::std::string, float,
                              ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
@@ -1038,6 +1085,216 @@ class Definition_CopyFieldsEntry_DoNotUse final
 MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_CopyFieldsEntry_DoNotUse_class_data_;
 // -------------------------------------------------------------------
 
+class MODLOCK_API Definition_Upgrade final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:modlock.wasm.Definition.Upgrade) */ {
+ public:
+  inline Definition_Upgrade() : Definition_Upgrade(nullptr) {}
+  ~Definition_Upgrade() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(Definition_Upgrade* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(Definition_Upgrade));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR Definition_Upgrade(::google::protobuf::internal::ConstantInitialized);
+
+  inline Definition_Upgrade(const Definition_Upgrade& from) : Definition_Upgrade(nullptr, from) {}
+  inline Definition_Upgrade(Definition_Upgrade&& from) noexcept
+      : Definition_Upgrade(nullptr, ::std::move(from)) {}
+  inline Definition_Upgrade& operator=(const Definition_Upgrade& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Definition_Upgrade& operator=(Definition_Upgrade&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Definition_Upgrade& default_instance() {
+    return *reinterpret_cast<const Definition_Upgrade*>(
+        &_Definition_Upgrade_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 6;
+  friend void swap(Definition_Upgrade& a, Definition_Upgrade& b) { a.Swap(&b); }
+  inline void Swap(Definition_Upgrade* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Definition_Upgrade* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Definition_Upgrade* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<Definition_Upgrade>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const Definition_Upgrade& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const Definition_Upgrade& from) { Definition_Upgrade::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(Definition_Upgrade* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "modlock.wasm.Definition.Upgrade"; }
+
+  explicit Definition_Upgrade(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  Definition_Upgrade(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Definition_Upgrade& from);
+  Definition_Upgrade(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Definition_Upgrade&& from) noexcept
+      : Definition_Upgrade(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kTierFieldNumber = 1,
+    kPropertiesFieldNumber = 2,
+  };
+  // uint32 tier = 1;
+  void clear_tier() ;
+  ::uint32_t tier() const;
+  void set_tier(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_tier() const;
+  void _internal_set_tier(::uint32_t value);
+
+  public:
+  // map<string, float> properties = 2;
+  int properties_size() const;
+  private:
+  int _internal_properties_size() const;
+
+  public:
+  void clear_properties() ;
+  const ::google::protobuf::Map<::std::string, float>& properties() const;
+  ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL mutable_properties();
+
+  private:
+  const ::google::protobuf::Map<::std::string, float>& _internal_properties() const;
+  ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL _internal_mutable_properties();
+
+  public:
+  // @@protoc_insertion_point(class_scope:modlock.wasm.Definition.Upgrade)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<0, 2,
+                                   1, 50,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const Definition_Upgrade& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::uint32_t tier_;
+    ::google::protobuf::internal::MapField<Definition_Upgrade_PropertiesEntry_DoNotUse, ::std::string, float,
+                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+                      ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>
+        properties_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_github_2ecom_2fparalin_2fmodlock_2fsrc_2fwasm_2fmanifest_2eproto;
+};
+
+MODLOCK_API extern const ::google::protobuf::internal::ClassDataFull Definition_Upgrade_class_data_;
+// -------------------------------------------------------------------
+
 class MODLOCK_API Definition final : public ::google::protobuf::Message
 /* @@protoc_insertion_point(class_definition:modlock.wasm.Definition) */ {
  public:
@@ -1093,7 +1350,7 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
     return *reinterpret_cast<const Definition*>(
         &_Definition_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 5;
+  static constexpr int kIndexInFileMessages = 7;
   friend void swap(Definition& a, Definition& b) { a.Swap(&b); }
   inline void Swap(Definition* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1177,6 +1434,7 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
 
   ::google::protobuf::Metadata GetMetadata() const;
   // nested types ----------------------------------------------------
+  using Upgrade = Definition_Upgrade;
   using File = Definition_File;
   static constexpr File FILE_ABILITIES = Definition_File_FILE_ABILITIES;
   static constexpr File FILE_HEROES = Definition_File_FILE_HEROES;
@@ -1203,12 +1461,30 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
+    kUpgradesFieldNumber = 6,
     kEntryFieldNumber = 2,
     kFileFieldNumber = 1,
     kPropertiesFieldNumber = 3,
     kFieldsFieldNumber = 4,
     kCopyFieldsFieldNumber = 5,
   };
+  // repeated .modlock.wasm.Definition.Upgrade upgrades = 6;
+  int upgrades_size() const;
+  private:
+  int _internal_upgrades_size() const;
+
+  public:
+  void clear_upgrades() ;
+  ::modlock::wasm::Definition_Upgrade* PROTOBUF_NONNULL mutable_upgrades(int index);
+  ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>* PROTOBUF_NONNULL mutable_upgrades();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>& _internal_upgrades() const;
+  ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>* PROTOBUF_NONNULL _internal_mutable_upgrades();
+  public:
+  const ::modlock::wasm::Definition_Upgrade& upgrades(int index) const;
+  ::modlock::wasm::Definition_Upgrade* PROTOBUF_NONNULL add_upgrades();
+  const ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>& upgrades() const;
   // string entry = 2;
   void clear_entry() ;
   const ::std::string& entry() const;
@@ -1283,8 +1559,8 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 5,
-                                   3, 64,
+  static const ::google::protobuf::internal::TcParseTable<3, 6,
+                                   4, 64,
                                    2>
       _table_;
 
@@ -1305,6 +1581,7 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
         const Definition& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::modlock::wasm::Definition_Upgrade > upgrades_;
     ::google::protobuf::internal::ArenaStringPtr entry_;
     int file_;
     ::google::protobuf::internal::MapField<Definition_PropertiesEntry_DoNotUse, ::std::string, float,
@@ -2631,6 +2908,69 @@ inline void Movement::_internal_set_scale(float value) {
 
 // -------------------------------------------------------------------
 
+// -------------------------------------------------------------------
+
+// Definition_Upgrade
+
+// uint32 tier = 1;
+inline void Definition_Upgrade::clear_tier() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.tier_ = 0u;
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000001U);
+}
+inline ::uint32_t Definition_Upgrade::tier() const {
+  // @@protoc_insertion_point(field_get:modlock.wasm.Definition.Upgrade.tier)
+  return _internal_tier();
+}
+inline void Definition_Upgrade::set_tier(::uint32_t value) {
+  _internal_set_tier(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_set:modlock.wasm.Definition.Upgrade.tier)
+}
+inline ::uint32_t Definition_Upgrade::_internal_tier() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.tier_;
+}
+inline void Definition_Upgrade::_internal_set_tier(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.tier_ = value;
+}
+
+// map<string, float> properties = 2;
+inline int Definition_Upgrade::_internal_properties_size() const {
+  return _internal_properties().size();
+}
+inline int Definition_Upgrade::properties_size() const {
+  return _internal_properties_size();
+}
+inline void Definition_Upgrade::clear_properties() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.properties_.Clear();
+  ClearHasBitForRepeated(_impl_._has_bits_[0],
+                  0x00000002U);
+}
+inline const ::google::protobuf::Map<::std::string, float>& Definition_Upgrade::_internal_properties() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.properties_.GetMap();
+}
+inline const ::google::protobuf::Map<::std::string, float>& Definition_Upgrade::properties() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_map:modlock.wasm.Definition.Upgrade.properties)
+  return _internal_properties();
+}
+inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definition_Upgrade::_internal_mutable_properties() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.properties_.MutableMap();
+}
+inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definition_Upgrade::mutable_properties()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000002U);
+  // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.Upgrade.properties)
+  return _internal_mutable_properties();
+}
+
+// -------------------------------------------------------------------
+
 // Definition
 
 // .modlock.wasm.Definition.File file = 1;
@@ -2638,7 +2978,7 @@ inline void Definition::clear_file() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.file_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000002U);
+                  0x00000004U);
 }
 inline ::modlock::wasm::Definition_File Definition::file() const {
   // @@protoc_insertion_point(field_get:modlock.wasm.Definition.file)
@@ -2646,7 +2986,7 @@ inline ::modlock::wasm::Definition_File Definition::file() const {
 }
 inline void Definition::set_file(::modlock::wasm::Definition_File value) {
   _internal_set_file(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   // @@protoc_insertion_point(field_set:modlock.wasm.Definition.file)
 }
 inline ::modlock::wasm::Definition_File Definition::_internal_file() const {
@@ -2663,7 +3003,7 @@ inline void Definition::clear_entry() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.entry_.ClearToEmpty();
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000001U);
+                  0x00000002U);
 }
 inline const ::std::string& Definition::entry() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -2673,13 +3013,13 @@ inline const ::std::string& Definition::entry() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void Definition::set_entry(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   _impl_.entry_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:modlock.wasm.Definition.entry)
 }
 inline ::std::string* PROTOBUF_NONNULL Definition::mutable_entry()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   ::std::string* _s = _internal_mutable_entry();
   // @@protoc_insertion_point(field_mutable:modlock.wasm.Definition.entry)
   return _s;
@@ -2699,10 +3039,10 @@ inline ::std::string* PROTOBUF_NONNULL Definition::_internal_mutable_entry() {
 inline ::std::string* PROTOBUF_NULLABLE Definition::release_entry() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:modlock.wasm.Definition.entry)
-  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
     return nullptr;
   }
-  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
   auto* released = _impl_.entry_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.entry_.Set("", GetArena());
@@ -2712,9 +3052,9 @@ inline ::std::string* PROTOBUF_NULLABLE Definition::release_entry() {
 inline void Definition::set_allocated_entry(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   } else {
-    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
   }
   _impl_.entry_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.entry_.IsDefault()) {
@@ -2734,7 +3074,7 @@ inline void Definition::clear_properties() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.properties_.Clear();
   ClearHasBitForRepeated(_impl_._has_bits_[0],
-                  0x00000004U);
+                  0x00000008U);
 }
 inline const ::google::protobuf::Map<::std::string, float>& Definition::_internal_properties() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -2750,7 +3090,7 @@ inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definitio
 }
 inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definition::mutable_properties()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000004U);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000008U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.properties)
   return _internal_mutable_properties();
 }
@@ -2766,7 +3106,7 @@ inline void Definition::clear_fields() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.fields_.Clear();
   ClearHasBitForRepeated(_impl_._has_bits_[0],
-                  0x00000008U);
+                  0x00000010U);
 }
 inline const ::google::protobuf::Map<::std::string, float>& Definition::_internal_fields() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -2782,7 +3122,7 @@ inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definitio
 }
 inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definition::mutable_fields()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000008U);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000010U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.fields)
   return _internal_mutable_fields();
 }
@@ -2798,7 +3138,7 @@ inline void Definition::clear_copy_fields() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.copy_fields_.Clear();
   ClearHasBitForRepeated(_impl_._has_bits_[0],
-                  0x00000010U);
+                  0x00000020U);
 }
 inline const ::google::protobuf::Map<::std::string, ::std::string>& Definition::_internal_copy_fields() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -2814,9 +3154,65 @@ inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL D
 }
 inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL Definition::mutable_copy_fields()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000010U);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000020U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.copy_fields)
   return _internal_mutable_copy_fields();
+}
+
+// repeated .modlock.wasm.Definition.Upgrade upgrades = 6;
+inline int Definition::_internal_upgrades_size() const {
+  return _internal_upgrades().size();
+}
+inline int Definition::upgrades_size() const {
+  return _internal_upgrades_size();
+}
+inline void Definition::clear_upgrades() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.upgrades_.Clear();
+  ClearHasBitForRepeated(_impl_._has_bits_[0],
+                  0x00000001U);
+}
+inline ::modlock::wasm::Definition_Upgrade* PROTOBUF_NONNULL Definition::mutable_upgrades(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:modlock.wasm.Definition.upgrades)
+  return _internal_mutable_upgrades()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>* PROTOBUF_NONNULL Definition::mutable_upgrades()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_mutable_list:modlock.wasm.Definition.upgrades)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_upgrades();
+}
+inline const ::modlock::wasm::Definition_Upgrade& Definition::upgrades(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:modlock.wasm.Definition.upgrades)
+  return _internal_upgrades().Get(index);
+}
+inline ::modlock::wasm::Definition_Upgrade* PROTOBUF_NONNULL Definition::add_upgrades()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::modlock::wasm::Definition_Upgrade* _add =
+      _internal_mutable_upgrades()->InternalAddWithArena(
+          ::google::protobuf::MessageLite::internal_visibility(), GetArena());
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_add:modlock.wasm.Definition.upgrades)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>& Definition::upgrades() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:modlock.wasm.Definition.upgrades)
+  return _internal_upgrades();
+}
+inline const ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>&
+Definition::_internal_upgrades() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.upgrades_;
+}
+inline ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>* PROTOBUF_NONNULL
+Definition::_internal_mutable_upgrades() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.upgrades_;
 }
 
 // -------------------------------------------------------------------
