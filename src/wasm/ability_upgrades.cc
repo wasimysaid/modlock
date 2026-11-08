@@ -214,6 +214,15 @@ std::expected<void, std::string> ApplyAbilityUpgrades(unsigned char* definition,
     if (change.upgrade_order_size() != tiers->count) {
       return std::unexpected("upgrade_order must contain every native tier");
     }
+    // These parsed links are not schema fields. Reject a changed ABI before touching them.
+    constexpr size_t tier_name = 24;
+    constexpr size_t tier_mask = 32;
+    constexpr size_t row_owner = 48;
+    if (sizeof(void*) != 8 || layout.tier_size != 40 || layout.property_size != 64 ||
+        layout.properties.offset != 0 || layout.name.offset != 0 ||
+        layout.street_bonus.offset != 16 || layout.upgrade_type.offset != 32) {
+      return std::unexpected("native upgrade ownership layout is unsupported");
+    }
     const size_t size = static_cast<size_t>(tiers->count) * layout.tier_size;
     UpgradeWrite records{tiers->data, std::vector<unsigned char>(size), {}};
     if (!read(records.storage, records.before.data(), size)) {
@@ -224,18 +233,34 @@ std::expected<void, std::string> ApplyAbilityUpgrades(unsigned char* definition,
       return std::unexpected("upgrade tier layout changed since its original snapshot");
     }
     const std::span<const unsigned char> original = saved ? *saved : records.before;
-    records.after.resize(size);
+    records.after.assign(original.begin(), original.end());
+    std::set<uintptr_t> names;
+    for (int32_t index = 0; index < tiers->count; ++index) {
+      const size_t offset = index * layout.tier_size;
+      uintptr_t name{};
+      uint16_t mask{};
+      std::memcpy(&name, original.data() + offset + tier_name, sizeof(name));
+      std::memcpy(&mask, original.data() + offset + tier_mask, sizeof(mask));
+      if (!name || !names.insert(name).second || mask != (2u << index) ||
+          std::memcmp(records.before.data() + offset + tier_name,
+                      original.data() + offset + tier_name, layout.tier_size - tier_name)) {
+        return std::unexpected("native upgrade tier identity is unsupported or changed");
+      }
+    }
+    std::set<unsigned char*> owners;
     for (int32_t index = 0; index < tiers->count; ++index) {
       const size_t source = (change.upgrade_order(index) - 1) * layout.tier_size;
       const size_t destination = index * layout.tier_size;
-      std::memcpy(records.after.data() + destination, original.data() + source, layout.tier_size);
+      std::memcpy(records.after.data() + destination, original.data() + source,
+                  sizeof(NativeVector));
       NativeVector current{};
       std::memcpy(&current, records.before.data() + destination + layout.properties.offset,
                   sizeof(current));
       auto& properties = ordered_properties[index];
       std::memcpy(&properties, records.after.data() + destination + layout.properties.offset,
                   sizeof(properties));
-      for (const auto& vector : {current, properties}) {
+      for (const bool canonical : {false, true}) {
+        const auto& vector = canonical ? properties : current;
         if (!ValidVector(vector, 128, layout.property_size)) {
           return std::unexpected("invalid upgrade property vector during reorder");
         }
@@ -248,9 +273,37 @@ std::expected<void, std::string> ApplyAbilityUpgrades(unsigned char* definition,
         if (row_size && !read(vector.data, rows.data(), row_size)) {
           return std::unexpected("unreadable upgrade property storage during reorder");
         }
+        for (int32_t row = 0; row < vector.count; ++row) {
+          auto* storage = vector.data + row * layout.property_size + row_owner;
+          unsigned char* owner{};
+          std::memcpy(&owner, rows.data() + row * layout.property_size + row_owner, sizeof(owner));
+          if (!canonical) {
+            if (owner != records.storage + destination) {
+              return std::unexpected("native upgrade row has an invalid current owner");
+            }
+            continue;
+          }
+          const auto original_owner = undo.OriginalValue(storage);
+          auto* expected_owner = records.storage + source;
+          unsigned char* saved_owner = owner;
+          if (original_owner) {
+            if (original_owner->size() != sizeof(saved_owner)) {
+              return std::unexpected("native upgrade owner snapshot size changed");
+            }
+            std::memcpy(&saved_owner, original_owner->data(), sizeof(saved_owner));
+          }
+          if (saved_owner != expected_owner || !owners.insert(storage).second) {
+            return std::unexpected("native upgrade row has an invalid original owner");
+          }
+          auto* new_owner = records.storage + destination;
+          const auto* before = reinterpret_cast<const unsigned char*>(&owner);
+          const auto* after = reinterpret_cast<const unsigned char*>(&new_owner);
+          writes.push_back(
+              {storage, {before, before + sizeof(owner)}, {after, after + sizeof(new_owner)}});
+        }
       }
     }
-    writes.push_back(std::move(records));
+    writes.insert(writes.begin(), std::move(records));
   }
   for (const auto& request : change.upgrades()) {
     if (request.tier() > static_cast<uint32_t>(tiers->count)) {

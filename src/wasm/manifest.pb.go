@@ -415,7 +415,7 @@ type Definition struct {
 	// fields and copy_fields. All requested rows are validated before writing;
 	// a failed native write attempts to restore every affected bonus.
 	Upgrades []*Definition_Upgrade `protobuf:"bytes,6,rep,name=upgrades,proto3" json:"upgrades,omitempty"`
-	// UpgradeOrder permutes complete native tier records from their original order.
+	// UpgradeOrder permutes native tier property vectors from their original order.
 	// [2, 3, 1] makes original tier 2 the first tier, tier 3 second and tier 1 third.
 	// It must contain each native tier exactly once. Costs remain unchanged.
 	// Upgrades in this entry address the resulting tiers. The same FILE_ABILITIES

@@ -83,12 +83,14 @@ unique, exist in the native ability and contain existing named properties with
 finite values. The writer changes both normal and Street Brawl numeric caches;
 it does not add rows, change strings, or grant points.
 
-A tier entry may include `"upgrade_order": [2, 3, 1]` to move complete native
-tier records into that order. The list must contain every native tier exactly
+A tier entry may include `"upgrade_order": [2, 3, 1]` to move existing property
+vectors into that tier order. The list must contain every native tier exactly
 once. Property edits in the same entry address the resulting tiers. Repeated
-application starts from the original records; native point costs remain in
-their existing tier positions. Inline property storage is rejected because
-moving a record would invalidate its internal pointers.
+application starts from the original vectors. Native tier identities and masks
+remain in their existing positions, preserving point costs and prerequisites.
+Each property's parsed owner link follows its destination tier; native property
+caches retain the same row addresses. The writer rejects unsupported parsed
+layouts, unexpected owner links and inline property storage before writing.
 
 All requested tier rows are resolved and checked before the first write.
 Malformed requests leave that entry unchanged. Write or readback failures

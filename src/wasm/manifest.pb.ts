@@ -440,7 +440,7 @@ export interface Definition {
    */
   upgrades?: Definition_Upgrade[]
   /**
-   * UpgradeOrder permutes complete native tier records from their original order.
+   * UpgradeOrder permutes native tier property vectors from their original order.
    * [2, 3, 1] makes original tier 2 the first tier, tier 3 second and tier 1 third.
    * It must contain each native tier exactly once. Costs remain unchanged.
    * Upgrades in this entry address the resulting tiers. The same FILE_ABILITIES

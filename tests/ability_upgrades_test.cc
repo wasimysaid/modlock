@@ -19,18 +19,25 @@ using modlock::wasm::DefinitionUndo;
 using NativeVector = modlock::gameinterop::UtlVector<unsigned char>;
 using Bonuses = std::array<float, 2>;
 
+struct Tier;
+
 struct Property {
   const char* name;
   const char* bonus;
   const char* street_bonus;
   Bonuses values;
   int32_t upgrade_type;
-  std::array<unsigned char, 28> rest;
+  int32_t scale_stat;
+  std::array<unsigned char, 8> rest;
+  Tier* owner;
+  void* parsed_property;
 };
 
 struct Tier {
   NativeVector properties;
-  std::array<unsigned char, 16> rest;
+  uintptr_t name;
+  uint16_t mask;
+  std::array<unsigned char, 6> rest;
 };
 
 struct Ability {
@@ -98,6 +105,13 @@ class AbilityUpgrades : public testing::Test {
     properties[0][1] = {.name = kNames[1], .values = {6, 7}, .upgrade_type = 1};
     properties[1][0] = {.name = kNames[2], .values = {1181, 1500}, .upgrade_type = 1};
     properties[2][0] = {.name = kNames[3], .values = {-11.5, -8}, .upgrade_type = 1};
+    for (size_t index = 0; index < tiers.size(); ++index) {
+      tiers[index].name = index + 100;
+      tiers[index].mask = 2u << index;
+      for (int row = 0; row < tiers[index].properties.count; ++row) {
+        properties[index][row].owner = &tiers[index];
+      }
+    }
     regions = {{&ability, sizeof(ability)},
                {tiers.data(), sizeof(tiers)},
                {properties.data(), sizeof(properties)},
@@ -151,7 +165,7 @@ class AbilityUpgrades : public testing::Test {
   }
 };
 
-TEST_F(AbilityUpgrades, ReordersWholeNativeRecordsAndResolvesDestinationProperties) {
+TEST_F(AbilityUpgrades, ReordersPropertiesPreservingNativeCostsAndCachedEffectOwnership) {
   for (size_t index = 0; index < tiers.size(); ++index) {
     tiers[index].rest.fill(static_cast<unsigned char>(index + 1));
   }
@@ -170,8 +184,17 @@ TEST_F(AbilityUpgrades, ReordersWholeNativeRecordsAndResolvesDestinationProperti
     const auto result = Apply();
     ASSERT_TRUE(result) << result.error();
     for (size_t index = 0; index < tiers.size(); ++index) {
-      EXPECT_EQ(std::memcmp(&tiers[index], &original_tiers[(index + 1) % 3], sizeof(Tier)), 0);
+      EXPECT_EQ(std::memcmp(&tiers[index].properties, &original_tiers[(index + 1) % 3].properties,
+                            sizeof(NativeVector)),
+                0);
+      EXPECT_EQ(tiers[index].mask, original_tiers[index].mask);
+      EXPECT_EQ(tiers[index].name, original_tiers[index].name);
+      EXPECT_EQ(tiers[index].rest, original_tiers[index].rest);
     }
+    // Native property caches retain row addresses and read each row's owner mask.
+    EXPECT_EQ(properties[1][0].owner->mask, 2);
+    EXPECT_EQ(properties[2][0].owner->mask, 4);
+    EXPECT_EQ(properties[0][0].owner->mask, 8);
     EXPECT_EQ(properties[1][0].values, (Bonuses{236.22, 236.22}));
     EXPECT_EQ(properties[2][0].values, (Bonuses{-1, -1}));
     EXPECT_EQ(properties[0][0].values, (Bonuses{0, 0}));
@@ -197,7 +220,11 @@ TEST_F(AbilityUpgrades, OrderOnlyUsesOriginalRecordsAcrossDifferentPermutations)
   }
   ASSERT_TRUE(Apply());
   for (size_t index = 0; index < tiers.size(); ++index) {
-    EXPECT_EQ(std::memcmp(&tiers[index], &original[(index + 2) % 3], sizeof(Tier)), 0);
+    EXPECT_EQ(std::memcmp(&tiers[index].properties, &original[(index + 2) % 3].properties,
+                          sizeof(NativeVector)),
+              0);
+    EXPECT_EQ(tiers[index].mask, original[index].mask);
+    EXPECT_EQ(tiers[index].name, original[index].name);
   }
   change.clear_upgrade_order();
   Add(1, "AbilityCooldown", -2);
@@ -267,6 +294,27 @@ TEST_F(AbilityUpgrades, RejectsInlineOrUnreadablePropertyStorageEvenInUntouchedT
   EXPECT_EQ(writes, 0);
 }
 
+TEST_F(AbilityUpgrades, RejectsUnverifiedNativeIdentityAndOwnershipBeforeWrites) {
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  const auto original_tiers = tiers;
+  tiers[0].mask = 4;
+  EXPECT_FALSE(Apply());
+  tiers = original_tiers;
+  tiers[1].name = tiers[0].name;
+  EXPECT_FALSE(Apply());
+  tiers = original_tiers;
+  properties[1][0].owner = &tiers[0];
+  EXPECT_FALSE(Apply());
+  properties[1][0].owner = &tiers[1];
+  auto layout = Layout();
+  layout.tier_size += 8;
+  EXPECT_FALSE(Apply(layout));
+  EXPECT_EQ(writes, 0);
+}
+
 TEST_F(AbilityUpgrades, RejectsChangedTierCountAfterOriginalSnapshot) {
   change.clear_upgrades();
   for (auto tier : {2, 3, 1}) {
@@ -298,7 +346,7 @@ TEST_F(AbilityUpgrades, RollsBackPartialRecordAndBonusWritesIncludingFailureOnRe
     }
     const auto before_tiers = tiers;
     const auto before_properties = properties;
-    for (int failure = 1; failure <= 3; ++failure) {
+    for (int failure = 1; failure <= 7; ++failure) {
       int attempts = 0;
       auto result = ApplyAbilityUpgrades(
           reinterpret_cast<unsigned char*>(&ability), change, Layout(), undo,
