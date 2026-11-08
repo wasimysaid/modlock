@@ -6,6 +6,9 @@
 /** layoutDataAttribute names the attribute holding a layout node's data. */
 export const layoutDataAttribute = 'modlock_data'
 
+/** layoutUnloading marks a layout before its panel or an ancestor leaves. */
+export const layoutUnloading = 'modlock_unloading'
+
 /**
  * routeAttribute names the attribute of each layout's panel that holds the
  * route name's value, empty when the mod sends none.

@@ -20,6 +20,7 @@ import {
   isRouteName,
   layoutDataAttribute,
   layoutDataChanged,
+  layoutUnloading,
   routeAttribute,
 } from './data.js'
 
@@ -38,6 +39,19 @@ const panel = $.GetContextPanel()
 
 /** watches holds every handler the layout registered. */
 const watches: Watch[] = []
+const cleanup: (() => void)[] = []
+let listening = false
+let unloaded = false
+
+/** onUnload restores effects outside this layout before its panel leaves. */
+export function onUnload(handler: () => void): void {
+  if (unloaded) {
+    handler()
+    return
+  }
+  cleanup.push(handler)
+  listen()
+}
 
 /**
  * data calls handler with the layout element's data now and after each
@@ -60,20 +74,38 @@ export function route(name: string, handler: Handler): void {
 
 /** watch registers handler for attribute and hands it the current value. */
 function watch(attribute: string, handler: Handler): void {
-  if (watches.length === 0) {
+  listen()
+  const last = panel.GetAttributeString(attribute, '')
+  watches.push({ attribute, handler, last })
+  handler(parse(last))
+}
+
+function listen(): void {
+  if (!listening) {
+    listening = true
     $.RegisterForUnhandledEvent('PlaySoundEffect', (sound: string) => {
       if (sound === layoutDataChanged) {
         reread()
       }
     })
   }
-  const last = panel.GetAttributeString(attribute, '')
-  watches.push({ attribute, handler, last })
-  handler(parse(last))
 }
 
 /** reread hands each handler whose value changed its new value. */
 function reread(): void {
+  if (unloaded || !panel.IsValid()) return
+  if (panel.GetAttributeString(layoutUnloading, '') === '1') {
+    unloaded = true
+    watches.length = 0
+    for (const handler of cleanup.splice(0)) {
+      try {
+        handler()
+      } catch (error) {
+        $.Msg(`[Modlock] layout cleanup failed: ${String(error)}`)
+      }
+    }
+    return
+  }
   for (const each of watches) {
     const text = panel.GetAttributeString(each.attribute, '')
     if (text !== each.last) {

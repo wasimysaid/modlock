@@ -57,6 +57,7 @@ import {
   isRouteName,
   layoutDataAttribute,
   layoutDataChanged,
+  layoutUnloading,
   routeAttribute,
 } from './data.js'
 
@@ -87,6 +88,7 @@ export interface Panel {
   visible: boolean
   readonly style: Record<string, string | null>
   IsValid(): boolean
+  GetParent(): Panel | null
   GetChild(index: number): Panel | null
   FindChildTraverse(id: string): Panel | null
   MoveChildBefore(child: Panel, before: Panel): void
@@ -94,6 +96,7 @@ export interface Panel {
   SetImage(path: string): void
   SetPanelEvent(event: string, handler: () => void): void
   SetAttributeString(name: string, value: string): void
+  GetAttributeString(name: string, fallback: string): string
   AddClass(name: string): void
   RemoveClass(name: string): void
   BLoadLayout(
@@ -502,7 +505,8 @@ export class Drawing {
         for (const each of drawn.nodes.values()) {
           this.untip(each)
         }
-        drawn.nodes.get('')?.panel.DeleteAsync(0)
+        const root = drawn.nodes.get('')
+        if (root) this.delete(root)
         this.unloaded ||= [...drawn.nodes.values()].some(
           (each) => each.layout !== null,
         )
@@ -553,7 +557,8 @@ export class Drawing {
       for (const each of old.nodes.values()) {
         this.untip(each)
       }
-      old.nodes.get('')?.panel.DeleteAsync(0)
+      const root = old.nodes.get('')
+      if (root) this.delete(root)
       this.unloaded ||= [...old.nodes.values()].some(
         (each) => each.layout !== null,
       )
@@ -610,6 +615,32 @@ export class Drawing {
    * notes a layout's.
    */
   private delete(drawn: Drawn, seconds = 0): void {
+    // Notify scripts before deleting a parent also destroys their contexts.
+    let unloading = false
+    for (const tree of this.mods.values()) {
+      for (const each of tree.nodes.values()) {
+        if (
+          !each.loaded ||
+          !each.layout ||
+          !each.panel.IsValid() ||
+          each.panel.GetAttributeString(layoutUnloading, '') === '1'
+        )
+          continue
+        for (
+          let ancestor: Panel | null = each.panel;
+          ancestor;
+          ancestor = ancestor.GetParent()
+        ) {
+          if (ancestor === drawn.panel) {
+            each.panel.SetAttributeString(layoutUnloading, '1')
+            unloading = true
+            break
+          }
+        }
+      }
+    }
+    if (unloading)
+      this.panorama.DispatchEvent('PlaySoundEffect', layoutDataChanged)
     this.untip(drawn)
     drawn.panel.DeleteAsync(seconds)
     this.unloaded ||= drawn.layout !== null

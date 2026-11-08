@@ -33,6 +33,7 @@ remaining checks.
 | Scripted press bypass and cancellation | Native input layer | A queued press bypasses blocking for one input; cancellation removes undelivered queued buttons |
 | Packaged image dimensions | Panorama content compiler | Stylesheet image tables use dimensions from packaged VTEX headers |
 | Numeric native tier bonuses | Native definition layer | Replace values of existing ability-upgrade rows; preserve native costs and row identity |
+| Layout unload callbacks | Panorama renderer and layout library | `Modlock.onUnload(handler)` runs once before a layout or its ancestor is removed or replaced; use it to restore native panels and cancel work |
 
 A scripted press bypasses the combined input block mask, including blocks from
 other loaded mods. It does not remove those blocks or change the physical input
@@ -42,6 +43,12 @@ the game. Modes must cancel pending actions when their owner leaves or dies.
 Image dimensions are a compiler fix. External game images retain upstream
 lookup behavior; malformed packaged textures fail compilation. This does not
 replace the asset SDK or change image pixels.
+
+Layout unload callbacks cover UI removal, layout replacement and mod reload.
+They run while the layout's panel is still valid. A failed callback is logged
+and does not prevent the remaining callbacks. They do not run when the entire
+game process or its Panorama context is destroyed. A layout should keep any
+temporary changes within that context and restore them in its callback.
 
 ## Native tier definitions
 

@@ -12,6 +12,94 @@ import {
 } from './draw.js'
 import { Cursor, Hud, cursorAsks, cursorFreed, hiddenParts } from './hud.js'
 import { decodeUtf8 } from './packed.js'
+import { layoutUnloading } from './data.js'
+
+test('unloads layouts before removing, replacing or reloading their ancestors', () => {
+  const root = new FakePanel('Panel', 'ModlockUi')
+  const observed = new Map<FakePanel, number>()
+  const drawing = new Drawing(
+    {
+      ...$,
+      DispatchEvent: () => {
+        for (const [panel, count] of observed) {
+          if (
+            count === 0 &&
+            panel.valid &&
+            panel.GetAttributeString(layoutUnloading, '') === '1'
+          ) {
+            expect(panel.parent?.valid).toBe(true)
+            observed.set(panel, count + 1)
+          }
+        }
+      },
+    },
+    root,
+    () => {},
+    { url: (_mod, path) => `file://arena/${path}`, unloaded: () => {} },
+  )
+  const tree = (path = 'hud.xml') =>
+    screen(
+      { id: '', children: ['group'] },
+      { id: 'group', children: ['hud'] },
+      { id: 'hud', kind: 'KIND_LAYOUT', layout: path },
+    )
+  const remember = () => {
+    const panel = root.children[0]!.children[0]!.children[0]!
+    observed.set(panel, 0)
+    return panel
+  }
+  drawing.draw(tree())
+  const first = remember()
+  drawing.draw(tree())
+  expect(observed.get(first)).toBe(0)
+  drawing.draw(screen({ id: '' }))
+  expect(observed.get(first)).toBe(1)
+  expect(first.parent?.valid).toBe(false)
+  drawing.draw(tree())
+  const second = remember()
+  drawing.draw(tree('replacement.xml'))
+  expect(observed.get(second)).toBe(1)
+  const third = remember()
+  const reloaded = tree('replacement.xml')
+  reloaded.trees![0]!.generation = 2n
+  drawing.draw(reloaded)
+  expect(observed.get(third)).toBe(1)
+  const fourth = remember()
+  drawing.draw(null)
+  expect(observed.get(fourth)).toBe(1)
+})
+
+test('layout cleanup runs once, survives a failed handler and stops data callbacks', async () => {
+  const panel = new FakePanel('Panel', 'layout')
+  let wake = () => {}
+  Object.assign($, {
+    GetContextPanel: () => panel,
+    RegisterForUnhandledEvent: (
+      _event: string,
+      handler: (sound: string) => void,
+    ) => {
+      wake = () => handler(layoutDataChanged)
+      return 1
+    },
+  })
+  const layout = await import('./layout.js')
+  const calls: unknown[] = []
+  layout.data((value) => calls.push(value))
+  layout.onUnload(() => {
+    calls.push('first')
+    throw new Error('test cleanup failure')
+  })
+  layout.onUnload(() => calls.push('second'))
+  panel.SetAttributeString(layoutUnloading, '1')
+  wake()
+  wake()
+  panel.SetAttributeString('modlock_data', '42')
+  wake()
+  expect(calls).toEqual([undefined, 'first', 'second'])
+  expect(messages).toContain(
+    '[Modlock] layout cleanup failed: Error: test cleanup failure',
+  )
+})
 
 /** FakePanel records what the renderer does to one panel. */
 class FakePanel {
