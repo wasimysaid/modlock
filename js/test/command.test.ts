@@ -136,6 +136,36 @@ test('a command is claimed at once and runs with the next frame', () => {
   ])
 })
 
+test('command names accept native space and tab separators without changing arguments', () => {
+  const seen: string[] = []
+  command('consume', (_player, args) => seen.push(args))
+  frame(12)
+  for (const separator of [' ', '\t', ' \t', '\t ']) {
+    expect(send(3, `consume${separator}"Mixed Case"\t1`)).toBe(true)
+  }
+  expect(send(3, 'consume\t')).toBe(true)
+  expect(send(3, 'unknown\targument')).toBe(false)
+  expect(seen).toEqual([])
+  frame(12.016)
+  expect(seen).toEqual([
+    '"Mixed Case"\t1',
+    '"Mixed Case"\t1',
+    '"Mixed Case"\t1',
+    '"Mixed Case"\t1',
+    '',
+  ])
+})
+
+test('native command names are case insensitive while arguments retain their case', () => {
+  const seen: string[] = []
+  command('casecheck', (_player, args) => seen.push(args))
+  frame(14)
+  expect(send(3, 'CASECHECK MixedCase')).toBe(true)
+  expect(send(3, '  CaSeChEcK\tOtherCase  ')).toBe(true)
+  frame(14.016)
+  expect(seen).toEqual(['MixedCase', 'OtherCase'])
+})
+
 test('a command that throws does not stop the frame', () => {
   // The failing command logs, and the next one and the frame handlers still run.
   const seen: string[] = []

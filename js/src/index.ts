@@ -438,8 +438,9 @@ const handlers: ModHandlers = {
   command(event) {
     // Split the command line into its name and arguments.
     const line = event.line.trim()
-    const space = line.indexOf(' ')
-    const registered = commands.get(space < 0 ? line : line.slice(0, space))
+    const boundary = line.search(/[ \t]/)
+    const name = boundary < 0 ? line : line.slice(0, boundary)
+    const registered = commands.get(name.toLowerCase())
     if (!registered) {
       return { claimed: false }
     }
@@ -447,7 +448,7 @@ const handlers: ModHandlers = {
     // Claim the command and run its handler with the next frame. The server
     // reads a client's commands under a CPU budget and drops the client when
     // one handler spends it; slow work in a frame only delays that frame.
-    const args = space < 0 ? '' : line.slice(space + 1).trim()
+    const args = boundary < 0 ? '' : line.slice(boundary + 1).trim()
     after(0, () => registered.handler(event.player, args))
     return { claimed: true }
   },
