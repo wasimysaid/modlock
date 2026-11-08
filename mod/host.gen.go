@@ -89,19 +89,19 @@ type Definition_File = wasmpb.Definition_File
 // The values of Definition_File.
 const (
 	// Definition_FileFileAbilities is scripts/abilities.vdata, the abilities and items.
-	Definition_FileFileAbilities = wasmpb.Definition_File_FILE_ABILITIES
+	Definition_FileFileAbilities = wasmpb.Definition_FILE_ABILITIES
 	// Definition_FileFileHeroes is scripts/heroes.vdata, the heroes.
-	Definition_FileFileHeroes = wasmpb.Definition_File_FILE_HEROES
+	Definition_FileFileHeroes = wasmpb.Definition_FILE_HEROES
 	// Definition_FileFileBotDifficulty is scripts/bots/bot_difficulty.vdata, the bot
 	// difficulties. An entry names one by its ECitadelBotDifficulty value,
 	// such as k_ECitadelBotDifficulty_Hard.
-	Definition_FileFileBotDifficulty = wasmpb.Definition_File_FILE_BOT_DIFFICULTY
+	Definition_FileFileBotDifficulty = wasmpb.Definition_FILE_BOT_DIFFICULTY
 	// Definition_FileFileNpcUnits is scripts/npc_units.vdata, the troopers, bosses and
 	// other units, and the bot brain (npc_player_bot_brain) every bot shares.
-	Definition_FileFileNpcUnits = wasmpb.Definition_File_FILE_NPC_UNITS
+	Definition_FileFileNpcUnits = wasmpb.Definition_FILE_NPC_UNITS
 	// Definition_FileFileModifiers names embedded modifier definitions by ability/modifier.
 	// Fields must name a direct float of the modifier's exact schema class.
-	Definition_FileFileModifiers = wasmpb.Definition_File_FILE_MODIFIERS
+	Definition_FileFileModifiers = wasmpb.Definition_FILE_MODIFIERS
 )
 
 // MovementAction is a movement fact the game announced for a hero.
