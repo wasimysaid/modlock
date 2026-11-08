@@ -433,6 +433,12 @@ export interface Definition {
    * key's path; both must be the same size.
    */
   copyFields?: { [key: string]: string }
+  /**
+   * Upgrades requires FILE_ABILITIES and a separate entry from properties,
+   * fields and copy_fields. All requested rows are validated before writing;
+   * a failed native write attempts to restore every affected bonus.
+   */
+  upgrades?: Definition_Upgrade[]
 }
 
 export const Definition: MessageType<Definition> =
@@ -444,6 +450,7 @@ export const Definition: MessageType<Definition> =
       [3, 'properties', 2, 584],
       [4, 'fields', 2, 584],
       [5, 'copy_fields', 9, 584],
+      [6, 'upgrades', 11, 1, Definition_Upgrade.codec],
     ],
     {
       decode: (r: BinaryReader, end: number, m: Definition): Definition => {
@@ -490,6 +497,11 @@ export const Definition: MessageType<Definition> =
               m.copyFields[k] = v
               break
             }
+            case 6:
+              ;(m.upgrades ??= []).push(
+                Definition_Upgrade.decode(r, r.delimited(), {}),
+              )
+              break
             default:
               r.skip(t)
           }
@@ -534,6 +546,11 @@ export const Definition: MessageType<Definition> =
               w.uint32(18).string(v)
               w.join(s)
             }
+        }
+        {
+          const a = m.upgrades
+          if (a != null)
+            for (const e of a) Definition_Upgrade.writeField(w, 6, e)
         }
       },
     },
@@ -585,6 +602,77 @@ export const Definition_File_Enum = /* @__PURE__ */ createEnumType(
     [4, 'FILE_MODIFIERS'],
   ],
 )
+
+/**
+ * Upgrade replaces existing numeric bonuses in one native ability tier.
+ * Values use engine units and replace both normal and Street Brawl bonuses.
+ * Native point costs and property names are unchanged.
+ *
+ * @generated from message modlock.wasm.Definition.Upgrade
+ */
+export interface Definition_Upgrade {
+  /**
+   * Tier is 1, 2 or 3, with each tier appearing at most once per entry.
+   */
+  tier?: number
+  properties?: { [key: string]: number }
+}
+
+export const Definition_Upgrade: MessageType<Definition_Upgrade> =
+  /* @__PURE__ */ createMessageType<Definition_Upgrade>(
+    'modlock.wasm.Definition.Upgrade',
+    () => [
+      [1, 'tier', 13],
+      [2, 'properties', 2, 584],
+    ],
+    {
+      decode: (
+        r: BinaryReader,
+        end: number,
+        m: Definition_Upgrade,
+      ): Definition_Upgrade => {
+        while (r.pos < end) {
+          const t = r.tag()
+          if ((t & 7) === 4) return m
+          switch (t >>> 3) {
+            case 1:
+              m.tier = r.uint32()
+              break
+            case 2: {
+              const [k, v] = r.entry(
+                (r) => r.string(),
+                (r) => r.float(),
+                '',
+                0,
+              )
+              m.properties ??= newMap()
+              m.properties[k] = v
+              break
+            }
+            default:
+              r.skip(t)
+          }
+        }
+        return m
+      },
+      encode: (m: Definition_Upgrade, w: Writer): void => {
+        {
+          const v = m.tier
+          if (v) w.uint32(8).uint32(v)
+        }
+        {
+          const o = m.properties
+          if (o != null)
+            for (const [k, v] of Object.entries(o)) {
+              const s = w.uint32(18).fork()
+              w.uint32(10).string(k)
+              w.uint32(21).float(v)
+              w.join(s)
+            }
+        }
+      },
+    },
+  )
 
 /**
  * DefinitionFieldOptions reads a direct float from a modifier definition.

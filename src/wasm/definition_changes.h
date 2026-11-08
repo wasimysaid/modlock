@@ -1,6 +1,7 @@
 #pragma once
 
 #include <expected>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,9 @@ class DefinitionUndo {
   // a later world keeps the game's own. world marks hero data, which belongs
   // to the current world.
   void Save(unsigned char* storage, size_t size, bool world);
+
+  // SaveValue records an original value already read through a bounded reader.
+  void SaveValue(unsigned char* storage, std::span<const unsigned char> value, bool world);
 
   // Restore writes every kept value back and forgets them. The module that
   // holds them must still be loaded.

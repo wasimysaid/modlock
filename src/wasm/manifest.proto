@@ -178,6 +178,20 @@ message Definition {
   // CopyFields copies the field at each value's path over the field at its
   // key's path; both must be the same size.
   map<string, string> copy_fields = 5;
+
+  // Upgrade replaces existing numeric bonuses in one native ability tier.
+  // Values use engine units and replace both normal and Street Brawl bonuses.
+  // Native point costs and property names are unchanged.
+  message Upgrade {
+    // Tier is 1, 2 or 3, with each tier appearing at most once per entry.
+    uint32 tier = 1;
+    map<string, float> properties = 2;
+  }
+
+  // Upgrades requires FILE_ABILITIES and a separate entry from properties,
+  // fields and copy_fields. All requested rows are validated before writing;
+  // a failed native write attempts to restore every affected bonus.
+  repeated Upgrade upgrades = 6;
 }
 
 // DefinitionFieldOptions reads a direct float from a modifier definition.

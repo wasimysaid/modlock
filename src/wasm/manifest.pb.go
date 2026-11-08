@@ -411,6 +411,10 @@ type Definition struct {
 	// CopyFields copies the field at each value's path over the field at its
 	// key's path; both must be the same size.
 	CopyFields map[string]string `protobuf:"bytes,5,rep,name=copy_fields,json=copyFields,proto3" json:"copyFields,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// Upgrades requires FILE_ABILITIES and a separate entry from properties,
+	// fields and copy_fields. All requested rows are validated before writing;
+	// a failed native write attempts to restore every affected bonus.
+	Upgrades []*Definition_Upgrade `protobuf:"bytes,6,rep,name=upgrades,proto3" json:"upgrades,omitempty"`
 }
 
 func (x *Definition) Reset() {
@@ -450,6 +454,13 @@ func (x *Definition) GetFields() map[string]float32 {
 func (x *Definition) GetCopyFields() map[string]string {
 	if x != nil {
 		return x.CopyFields
+	}
+	return nil
+}
+
+func (x *Definition) GetUpgrades() []*Definition_Upgrade {
+	if x != nil {
+		return x.Upgrades
 	}
 	return nil
 }
@@ -585,6 +596,62 @@ func (x *Definition_CopyFieldsEntry) GetValue() string {
 	return ""
 }
 
+// Upgrade replaces existing numeric bonuses in one native ability tier.
+// Values use engine units and replace both normal and Street Brawl bonuses.
+// Native point costs and property names are unchanged.
+type Definition_Upgrade struct {
+	unknownFields []byte
+	// Tier is 1, 2 or 3, with each tier appearing at most once per entry.
+	Tier       uint32             `protobuf:"varint,1,opt,name=tier,proto3" json:"tier,omitempty"`
+	Properties map[string]float32 `protobuf:"bytes,2,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed32,2,opt,name=value,proto3"`
+}
+
+func (x *Definition_Upgrade) Reset() {
+	*x = Definition_Upgrade{}
+}
+
+func (*Definition_Upgrade) ProtoMessage() {}
+
+func (x *Definition_Upgrade) GetTier() uint32 {
+	if x != nil {
+		return x.Tier
+	}
+	return 0
+}
+
+func (x *Definition_Upgrade) GetProperties() map[string]float32 {
+	if x != nil {
+		return x.Properties
+	}
+	return nil
+}
+
+type Definition_Upgrade_PropertiesEntry struct {
+	unknownFields []byte
+	Key           string  `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         float32 `protobuf:"fixed32,2,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *Definition_Upgrade_PropertiesEntry) Reset() {
+	*x = Definition_Upgrade_PropertiesEntry{}
+}
+
+func (*Definition_Upgrade_PropertiesEntry) ProtoMessage() {}
+
+func (x *Definition_Upgrade_PropertiesEntry) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *Definition_Upgrade_PropertiesEntry) GetValue() float32 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
 func (m *Manifest) CloneVT() *Manifest {
 	if m == nil {
 		return (*Manifest)(nil)
@@ -631,6 +698,23 @@ func (m *Movement) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
+func (m *Definition_Upgrade) CloneVT() *Definition_Upgrade {
+	if m == nil {
+		return (*Definition_Upgrade)(nil)
+	}
+	r := new(Definition_Upgrade)
+	r.Tier = m.Tier
+	r.Properties = protobuf_go_lite.CloneMap(m.Properties)
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *Definition_Upgrade) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
 func (m *Definition) CloneVT() *Definition {
 	if m == nil {
 		return (*Definition)(nil)
@@ -641,6 +725,7 @@ func (m *Definition) CloneVT() *Definition {
 	r.Properties = protobuf_go_lite.CloneMap(m.Properties)
 	r.Fields = protobuf_go_lite.CloneMap(m.Fields)
 	r.CopyFields = protobuf_go_lite.CloneMap(m.CopyFields)
+	r.Upgrades = protobuf_go_lite.CloneVTSlice(m.Upgrades)
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -767,6 +852,29 @@ func (this *Movement) EqualMessageVT(thatMsg any) bool {
 	return this.EqualVT(that)
 }
 
+func (this *Definition_Upgrade) EqualVT(that *Definition_Upgrade) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tier != that.Tier {
+		return false
+	}
+	if !protobuf_go_lite.EqualMap(this.Properties, that.Properties) {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *Definition_Upgrade) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*Definition_Upgrade)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
 func (this *Definition) EqualVT(that *Definition) bool {
 	if this == that {
 		return true
@@ -786,6 +894,9 @@ func (this *Definition) EqualVT(that *Definition) bool {
 		return false
 	}
 	if !protobuf_go_lite.EqualMap(this.CopyFields, that.CopyFields) {
+		return false
+	}
+	if !protobuf_go_lite.EqualVTSliceImplicit(this.Upgrades, that.Upgrades, func() *Definition_Upgrade { return &Definition_Upgrade{} }) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -1439,6 +1550,121 @@ func (x *Definition_CopyFieldsEntry) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
+// MarshalProtoJSON marshals the Definition_Upgrade_PropertiesEntry message to JSON.
+func (x *Definition_Upgrade_PropertiesEntry) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Key != "" || s.HasField("key") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("key")
+		s.WriteString(x.Key)
+	}
+	if x.Value != 0 || s.HasField("value") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("value")
+		s.WriteFloat32(x.Value)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the Definition_Upgrade_PropertiesEntry to JSON.
+func (x *Definition_Upgrade_PropertiesEntry) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the Definition_Upgrade_PropertiesEntry message from JSON.
+func (x *Definition_Upgrade_PropertiesEntry) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "key":
+			s.AddField("key")
+			x.Key = s.ReadString()
+		case "value":
+			s.AddField("value")
+			x.Value = s.ReadFloat32()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the Definition_Upgrade_PropertiesEntry from JSON.
+func (x *Definition_Upgrade_PropertiesEntry) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the Definition_Upgrade message to JSON.
+func (x *Definition_Upgrade) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tier != 0 || s.HasField("tier") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tier")
+		s.WriteUint32(x.Tier)
+	}
+	if x.Properties != nil || s.HasField("properties") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("properties")
+		s.WriteObjectStart()
+		var wroteElement bool
+		for _, k := range slices.Sorted(maps.Keys(x.Properties)) {
+			v := x.Properties[k]
+			s.WriteMoreIf(&wroteElement)
+			s.WriteObjectStringField(k)
+			s.WriteFloat32(v)
+		}
+		s.WriteObjectEnd()
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the Definition_Upgrade to JSON.
+func (x *Definition_Upgrade) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the Definition_Upgrade message from JSON.
+func (x *Definition_Upgrade) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tier":
+			s.AddField("tier")
+			x.Tier = s.ReadUint32()
+		case "properties":
+			s.AddField("properties")
+			if s.ReadNil() {
+				x.Properties = nil
+				return
+			}
+			x.Properties = make(map[string]float32)
+			s.ReadStringMap(func(key string) {
+				x.Properties[key] = s.ReadFloat32()
+			})
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the Definition_Upgrade from JSON.
+func (x *Definition_Upgrade) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
 // MarshalProtoJSON marshals the Definition message to JSON.
 func (x *Definition) MarshalProtoJSON(s *json.MarshalState) {
 	if x == nil {
@@ -1496,6 +1722,17 @@ func (x *Definition) MarshalProtoJSON(s *json.MarshalState) {
 		}
 		s.WriteObjectEnd()
 	}
+	if len(x.Upgrades) > 0 || s.HasField("upgrades") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("upgrades")
+		s.WriteArrayStart()
+		var wroteElement bool
+		for _, element := range x.Upgrades {
+			s.WriteMoreIf(&wroteElement)
+			element.MarshalProtoJSON(s.WithField("upgrades"))
+		}
+		s.WriteArrayEnd()
+	}
 	s.WriteObjectEnd()
 }
 
@@ -1548,6 +1785,24 @@ func (x *Definition) UnmarshalProtoJSON(s *json.UnmarshalState) {
 			x.CopyFields = make(map[string]string)
 			s.ReadStringMap(func(key string) {
 				x.CopyFields[key] = s.ReadString()
+			})
+		case "upgrades":
+			s.AddField("upgrades")
+			if s.ReadNil() {
+				x.Upgrades = nil
+				return
+			}
+			s.ReadArray(func() {
+				if s.ReadNil() {
+					x.Upgrades = append(x.Upgrades, nil)
+					return
+				}
+				v := &Definition_Upgrade{}
+				v.UnmarshalProtoJSON(s.WithField("upgrades", false))
+				if s.Err() != nil {
+					return
+				}
+				x.Upgrades = append(x.Upgrades, v)
 			})
 		}
 	})
@@ -1835,6 +2090,58 @@ func (m *Movement) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Definition_Upgrade) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Definition_Upgrade) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *Definition_Upgrade) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i = protobuf_go_lite.EncodeRawBytes(dAtA, i, m.unknownFields)
+	}
+	if len(m.Properties) > 0 {
+		for k := range m.Properties {
+			v := m.Properties[k]
+			baseI := i
+			i = protobuf_go_lite.EncodeFixed32(dAtA, i, uint32(math.Float32bits(float32(v))))
+			i--
+			dAtA[i] = 0x15
+			i = protobuf_go_lite.EncodeString(dAtA, i, k)
+			i--
+			dAtA[i] = 0xa
+			i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.Tier != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tier))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *Definition) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -1863,6 +2170,18 @@ func (m *Definition) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	_ = l
 	if m.unknownFields != nil {
 		i = protobuf_go_lite.EncodeRawBytes(dAtA, i, m.unknownFields)
+	}
+	if len(m.Upgrades) > 0 {
+		for iNdEx := len(m.Upgrades) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Upgrades[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x32
+		}
 	}
 	if len(m.CopyFields) > 0 {
 		for k := range m.CopyFields {
@@ -2057,6 +2376,23 @@ func (m *Movement) SizeVT() (n int) {
 	return n
 }
 
+func (m *Definition_Upgrade) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += protobuf_go_lite.SizeVarintNonZero(1, m.Tier)
+	for k, v := range m.Properties {
+		_ = k
+		_ = v
+		mapEntrySize := protobuf_go_lite.SizeStringValue(1, k) + protobuf_go_lite.SizeFixed32Value(1)
+		n += protobuf_go_lite.SizeMessage(1, mapEntrySize)
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
 func (m *Definition) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -2082,6 +2418,10 @@ func (m *Definition) SizeVT() (n int) {
 		_ = v
 		mapEntrySize := protobuf_go_lite.SizeStringValue(1, k) + protobuf_go_lite.SizeStringValue(1, v)
 		n += protobuf_go_lite.SizeMessage(1, mapEntrySize)
+	}
+	for _, e := range m.Upgrades {
+		l = e.SizeVT()
+		n += protobuf_go_lite.SizeMessage(1, l)
 	}
 	n += len(m.unknownFields)
 	return n
@@ -2297,6 +2637,49 @@ func (x *Definition_CopyFieldsEntry) String() string {
 	return x.MarshalProtoText()
 }
 
+func (x *Definition_Upgrade_PropertiesEntry) MarshalProtoText() string {
+	var sb protobuf_go_lite.TextBuilder
+	initialLen := protobuf_go_lite.TextStartMessage(&sb, "PropertiesEntry")
+	if x.Key != "" {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "key")
+		protobuf_go_lite.TextWriteString(&sb, x.Key)
+	}
+	if x.Value != 0 {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "value")
+		protobuf_go_lite.TextWriteFloat32(&sb, x.Value)
+	}
+	return protobuf_go_lite.TextFinishMessage(&sb)
+}
+
+func (x *Definition_Upgrade_PropertiesEntry) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *Definition_Upgrade) MarshalProtoText() string {
+	var sb protobuf_go_lite.TextBuilder
+	initialLen := protobuf_go_lite.TextStartMessage(&sb, "Upgrade")
+	if x.Tier != 0 {
+		protobuf_go_lite.TextWriteFieldPrefix(&sb, initialLen, "tier")
+		protobuf_go_lite.TextWriteUint(&sb, x.Tier)
+	}
+	if len(x.Properties) > 0 {
+		protobuf_go_lite.TextWriteMapStart(&sb, initialLen, "properties")
+		for _, k := range slices.Sorted(maps.Keys(x.Properties)) {
+			v := x.Properties[k]
+			protobuf_go_lite.TextWriteMapEntryPrefix(&sb)
+			protobuf_go_lite.TextWriteString(&sb, k)
+			protobuf_go_lite.TextWriteMapKeyValueSeparator(&sb)
+			protobuf_go_lite.TextWriteFloat32(&sb, v)
+		}
+		protobuf_go_lite.TextWriteMapEnd(&sb)
+	}
+	return protobuf_go_lite.TextFinishMessage(&sb)
+}
+
+func (x *Definition_Upgrade) String() string {
+	return x.MarshalProtoText()
+}
+
 func (x *Definition) MarshalProtoText() string {
 	var sb protobuf_go_lite.TextBuilder
 	initialLen := protobuf_go_lite.TextStartMessage(&sb, "Definition")
@@ -2340,6 +2723,18 @@ func (x *Definition) MarshalProtoText() string {
 			protobuf_go_lite.TextWriteString(&sb, v)
 		}
 		protobuf_go_lite.TextWriteMapEnd(&sb)
+	}
+	if len(x.Upgrades) > 0 {
+		protobuf_go_lite.TextWriteListStart(&sb, initialLen, "upgrades")
+		for i, v := range x.Upgrades {
+			protobuf_go_lite.TextWriteListSeparator(&sb, i)
+			if v == nil {
+				protobuf_go_lite.TextWriteTextMarshaler(&sb, &Definition_Upgrade{})
+			} else {
+				protobuf_go_lite.TextWriteTextMarshaler(&sb, v)
+			}
+		}
+		protobuf_go_lite.TextWriteListEnd(&sb)
 	}
 	return protobuf_go_lite.TextFinishMessage(&sb)
 }
@@ -2652,6 +3047,104 @@ func (m *Movement) UnmarshalVT(dAtA []byte) error {
 	return nil
 }
 
+func (m *Definition_Upgrade) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Definition_Upgrade: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Definition_Upgrade: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tier", wireType)
+			}
+			m.Tier = 0
+			m.Tier, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Properties", wireType)
+			}
+			msgStart, postIndex, err := protobuf_go_lite.DecodeLengthDelimited(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			iNdEx = msgStart
+			if m.Properties == nil {
+				m.Properties = make(map[string]float32)
+			}
+			var mapkey string
+			var mapvalue float32
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					mapkey, iNdEx, err = protobuf_go_lite.DecodeString(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+				} else if fieldNum == 2 {
+					var mapvaluetemp uint32
+					var _v32 uint32
+					_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					mapvaluetemp = uint32(_v32)
+					mapvalue = math.Float32frombits(mapvaluetemp)
+				} else {
+					iNdEx = entryPreIndex
+					iNdEx, err = protobuf_go_lite.SkipWithin(dAtA, iNdEx, postIndex)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			m.Properties[mapkey] = mapvalue
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
 func (m *Definition) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2826,6 +3319,19 @@ func (m *Definition) UnmarshalVT(dAtA []byte) error {
 				}
 			}
 			m.CopyFields[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Upgrades", wireType)
+			}
+			msgStart, postIndex, err := protobuf_go_lite.DecodeLengthDelimited(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			m.Upgrades = append(m.Upgrades, &Definition_Upgrade{})
+			if err := m.Upgrades[len(m.Upgrades)-1].UnmarshalVT(dAtA[msgStart:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
