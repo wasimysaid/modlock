@@ -81,7 +81,14 @@ An entry containing `upgrades` accepts only `FILE_ABILITIES` and cannot also
 contain `properties`, `fields` or `copy_fields`. Each requested tier must be
 unique, exist in the native ability and contain existing named properties with
 finite values. The writer changes both normal and Street Brawl numeric caches;
-it does not add rows, change strings, reorder tiers, or grant points.
+it does not add rows, change strings, or grant points.
+
+A tier entry may include `"upgrade_order": [2, 3, 1]` to move complete native
+tier records into that order. The list must contain every native tier exactly
+once. Property edits in the same entry address the resulting tiers. Repeated
+application starts from the original records; native point costs remain in
+their existing tier positions. Inline property storage is rejected because
+moving a record would invalidate its internal pointers.
 
 All requested tier rows are resolved and checked before the first write.
 Malformed requests leave that entry unchanged. Write or readback failures

@@ -439,6 +439,14 @@ export interface Definition {
    * a failed native write attempts to restore every affected bonus.
    */
   upgrades?: Definition_Upgrade[]
+  /**
+   * UpgradeOrder permutes complete native tier records from their original order.
+   * [2, 3, 1] makes original tier 2 the first tier, tier 3 second and tier 1 third.
+   * It must contain each native tier exactly once. Costs remain unchanged.
+   * Upgrades in this entry address the resulting tiers. The same FILE_ABILITIES
+   * and separate-entry requirements apply, including when upgrades is empty.
+   */
+  upgradeOrder?: number[]
 }
 
 export const Definition: MessageType<Definition> =
@@ -451,6 +459,7 @@ export const Definition: MessageType<Definition> =
       [4, 'fields', 2, 584],
       [5, 'copy_fields', 9, 584],
       [6, 'upgrades', 11, 1, Definition_Upgrade.codec],
+      [7, 'upgrade_order', 13, 3],
     ],
     {
       decode: (r: BinaryReader, end: number, m: Definition): Definition => {
@@ -502,6 +511,10 @@ export const Definition: MessageType<Definition> =
                 Definition_Upgrade.decode(r, r.delimited(), {}),
               )
               break
+            case 7:
+              for (const e = r.run(t), a = (m.upgradeOrder ??= []); r.pos < e;)
+                a.push(r.uint32())
+              break
             default:
               r.skip(t)
           }
@@ -551,6 +564,14 @@ export const Definition: MessageType<Definition> =
           const a = m.upgrades
           if (a != null)
             for (const e of a) Definition_Upgrade.writeField(w, 6, e)
+        }
+        {
+          const a = m.upgradeOrder
+          if (a != null && a.length > 0) {
+            const s = w.uint32(58).fork()
+            for (const e of a) w.uint32(e)
+            w.join(s)
+          }
         }
       },
     },

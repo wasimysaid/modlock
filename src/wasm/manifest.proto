@@ -192,6 +192,13 @@ message Definition {
   // fields and copy_fields. All requested rows are validated before writing;
   // a failed native write attempts to restore every affected bonus.
   repeated Upgrade upgrades = 6;
+
+  // UpgradeOrder permutes complete native tier records from their original order.
+  // [2, 3, 1] makes original tier 2 the first tier, tier 3 second and tier 1 third.
+  // It must contain each native tier exactly once. Costs remain unchanged.
+  // Upgrades in this entry address the resulting tiers. The same FILE_ABILITIES
+  // and separate-entry requirements apply, including when upgrades is empty.
+  repeated uint32 upgrade_order = 7;
 }
 
 // DefinitionFieldOptions reads a direct float from a modifier definition.

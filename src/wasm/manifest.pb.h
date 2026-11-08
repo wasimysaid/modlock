@@ -1462,6 +1462,7 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kUpgradesFieldNumber = 6,
+    kUpgradeOrderFieldNumber = 7,
     kEntryFieldNumber = 2,
     kFileFieldNumber = 1,
     kPropertiesFieldNumber = 3,
@@ -1485,6 +1486,24 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
   const ::modlock::wasm::Definition_Upgrade& upgrades(int index) const;
   ::modlock::wasm::Definition_Upgrade* PROTOBUF_NONNULL add_upgrades();
   const ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>& upgrades() const;
+  // repeated uint32 upgrade_order = 7;
+  int upgrade_order_size() const;
+  private:
+  int _internal_upgrade_order_size() const;
+
+  public:
+  void clear_upgrade_order() ;
+  ::uint32_t upgrade_order(int index) const;
+  void set_upgrade_order(int index, ::uint32_t value);
+  void add_upgrade_order(::uint32_t value);
+  const ::google::protobuf::RepeatedField<::uint32_t>& upgrade_order() const;
+  ::google::protobuf::RepeatedField<::uint32_t>* PROTOBUF_NONNULL mutable_upgrade_order();
+
+  private:
+  const ::google::protobuf::RepeatedField<::uint32_t>& _internal_upgrade_order() const;
+  ::google::protobuf::RepeatedField<::uint32_t>* PROTOBUF_NONNULL _internal_mutable_upgrade_order();
+
+  public:
   // string entry = 2;
   void clear_entry() ;
   const ::std::string& entry() const;
@@ -1559,7 +1578,7 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 6,
+  static const ::google::protobuf::internal::TcParseTable<3, 7,
                                    4, 64,
                                    2>
       _table_;
@@ -1582,6 +1601,8 @@ class MODLOCK_API Definition final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::RepeatedPtrField< ::modlock::wasm::Definition_Upgrade > upgrades_;
+    ::google::protobuf::RepeatedField<::uint32_t> upgrade_order_;
+    ::google::protobuf::internal::CachedSize _upgrade_order_cached_byte_size_;
     ::google::protobuf::internal::ArenaStringPtr entry_;
     int file_;
     ::google::protobuf::internal::MapField<Definition_PropertiesEntry_DoNotUse, ::std::string, float,
@@ -2978,7 +2999,7 @@ inline void Definition::clear_file() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.file_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000004U);
+                  0x00000008U);
 }
 inline ::modlock::wasm::Definition_File Definition::file() const {
   // @@protoc_insertion_point(field_get:modlock.wasm.Definition.file)
@@ -2986,7 +3007,7 @@ inline ::modlock::wasm::Definition_File Definition::file() const {
 }
 inline void Definition::set_file(::modlock::wasm::Definition_File value) {
   _internal_set_file(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
   // @@protoc_insertion_point(field_set:modlock.wasm.Definition.file)
 }
 inline ::modlock::wasm::Definition_File Definition::_internal_file() const {
@@ -3003,7 +3024,7 @@ inline void Definition::clear_entry() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.entry_.ClearToEmpty();
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000002U);
+                  0x00000004U);
 }
 inline const ::std::string& Definition::entry() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -3013,13 +3034,13 @@ inline const ::std::string& Definition::entry() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void Definition::set_entry(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   _impl_.entry_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:modlock.wasm.Definition.entry)
 }
 inline ::std::string* PROTOBUF_NONNULL Definition::mutable_entry()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   ::std::string* _s = _internal_mutable_entry();
   // @@protoc_insertion_point(field_mutable:modlock.wasm.Definition.entry)
   return _s;
@@ -3039,10 +3060,10 @@ inline ::std::string* PROTOBUF_NONNULL Definition::_internal_mutable_entry() {
 inline ::std::string* PROTOBUF_NULLABLE Definition::release_entry() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:modlock.wasm.Definition.entry)
-  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000004U)) {
     return nullptr;
   }
-  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
   auto* released = _impl_.entry_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.entry_.Set("", GetArena());
@@ -3052,9 +3073,9 @@ inline ::std::string* PROTOBUF_NULLABLE Definition::release_entry() {
 inline void Definition::set_allocated_entry(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+    SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   } else {
-    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+    ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
   }
   _impl_.entry_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.entry_.IsDefault()) {
@@ -3074,7 +3095,7 @@ inline void Definition::clear_properties() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.properties_.Clear();
   ClearHasBitForRepeated(_impl_._has_bits_[0],
-                  0x00000008U);
+                  0x00000010U);
 }
 inline const ::google::protobuf::Map<::std::string, float>& Definition::_internal_properties() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -3090,7 +3111,7 @@ inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definitio
 }
 inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definition::mutable_properties()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000008U);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000010U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.properties)
   return _internal_mutable_properties();
 }
@@ -3106,7 +3127,7 @@ inline void Definition::clear_fields() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.fields_.Clear();
   ClearHasBitForRepeated(_impl_._has_bits_[0],
-                  0x00000010U);
+                  0x00000020U);
 }
 inline const ::google::protobuf::Map<::std::string, float>& Definition::_internal_fields() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -3122,7 +3143,7 @@ inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definitio
 }
 inline ::google::protobuf::Map<::std::string, float>* PROTOBUF_NONNULL Definition::mutable_fields()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000010U);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000020U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.fields)
   return _internal_mutable_fields();
 }
@@ -3138,7 +3159,7 @@ inline void Definition::clear_copy_fields() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.copy_fields_.Clear();
   ClearHasBitForRepeated(_impl_._has_bits_[0],
-                  0x00000020U);
+                  0x00000040U);
 }
 inline const ::google::protobuf::Map<::std::string, ::std::string>& Definition::_internal_copy_fields() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -3154,7 +3175,7 @@ inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL D
 }
 inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL Definition::mutable_copy_fields()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000020U);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000040U);
   // @@protoc_insertion_point(field_mutable_map:modlock.wasm.Definition.copy_fields)
   return _internal_mutable_copy_fields();
 }
@@ -3213,6 +3234,56 @@ inline ::google::protobuf::RepeatedPtrField<::modlock::wasm::Definition_Upgrade>
 Definition::_internal_mutable_upgrades() {
   ::google::protobuf::internal::TSanRead(&_impl_);
   return &_impl_.upgrades_;
+}
+
+// repeated uint32 upgrade_order = 7;
+inline int Definition::_internal_upgrade_order_size() const {
+  return _internal_upgrade_order().size();
+}
+inline int Definition::upgrade_order_size() const {
+  return _internal_upgrade_order_size();
+}
+inline void Definition::clear_upgrade_order() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.upgrade_order_.Clear();
+  ClearHasBitForRepeated(_impl_._has_bits_[0],
+                  0x00000002U);
+}
+inline ::uint32_t Definition::upgrade_order(int index) const {
+  // @@protoc_insertion_point(field_get:modlock.wasm.Definition.upgrade_order)
+  return _internal_upgrade_order().Get(index);
+}
+inline void Definition::set_upgrade_order(int index, ::uint32_t value) {
+  _internal_mutable_upgrade_order()->Set(index, value);
+  // @@protoc_insertion_point(field_set:modlock.wasm.Definition.upgrade_order)
+}
+inline void Definition::add_upgrade_order(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _internal_mutable_upgrade_order()->Add(value);
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000002U);
+  // @@protoc_insertion_point(field_add:modlock.wasm.Definition.upgrade_order)
+}
+inline const ::google::protobuf::RepeatedField<::uint32_t>& Definition::upgrade_order() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:modlock.wasm.Definition.upgrade_order)
+  return _internal_upgrade_order();
+}
+inline ::google::protobuf::RepeatedField<::uint32_t>* PROTOBUF_NONNULL Definition::mutable_upgrade_order()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBitForRepeated(_impl_._has_bits_[0], 0x00000002U);
+  // @@protoc_insertion_point(field_mutable_list:modlock.wasm.Definition.upgrade_order)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_upgrade_order();
+}
+inline const ::google::protobuf::RepeatedField<::uint32_t>&
+Definition::_internal_upgrade_order() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.upgrade_order_;
+}
+inline ::google::protobuf::RepeatedField<::uint32_t>* PROTOBUF_NONNULL
+Definition::_internal_mutable_upgrade_order() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.upgrade_order_;
 }
 
 // -------------------------------------------------------------------

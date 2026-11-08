@@ -1,6 +1,7 @@
 #pragma once
 
 #include <expected>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -25,6 +26,9 @@ class DefinitionUndo {
 
   // SaveValue records an original value already read through a bounded reader.
   void SaveValue(unsigned char* storage, std::span<const unsigned char> value, bool world);
+
+  // OriginalValue borrows the first snapshot at storage until the undo record changes.
+  std::optional<std::span<const unsigned char>> OriginalValue(const unsigned char* storage) const;
 
   // Restore writes every kept value back and forgets them. The module that
   // holds them must still be loaded.

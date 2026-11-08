@@ -190,7 +190,7 @@ unsigned char* Locate(unsigned char* definition, const Place& place) {
 void Change(const Definition& change, unsigned char* definition, void* schema, const char* module,
             const gameinterop::ModuleImage& image, DefinitionUndo& undo,
             std::vector<std::string>& problems) {
-  if (!change.upgrades().empty()) {
+  if (!change.upgrades().empty() || !change.upgrade_order().empty()) {
     auto layout = ResolveAbilityUpgradeLayout(schema, module);
     if (!layout) {
       problems.push_back(layout.error());
@@ -379,6 +379,16 @@ void DefinitionUndo::SaveValue(unsigned char* storage, std::span<const unsigned 
   }
   saved_.push_back(
       Saved{.storage = storage, .value = {value.begin(), value.end()}, .world = world});
+}
+
+std::optional<std::span<const unsigned char>> DefinitionUndo::OriginalValue(
+    const unsigned char* storage) const {
+  for (const auto& saved : saved_) {
+    if (saved.storage == storage) {
+      return std::span<const unsigned char>(saved.value);
+    }
+  }
+  return std::nullopt;
 }
 
 void DefinitionUndo::Restore() {

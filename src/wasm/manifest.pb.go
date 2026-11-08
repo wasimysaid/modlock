@@ -415,6 +415,12 @@ type Definition struct {
 	// fields and copy_fields. All requested rows are validated before writing;
 	// a failed native write attempts to restore every affected bonus.
 	Upgrades []*Definition_Upgrade `protobuf:"bytes,6,rep,name=upgrades,proto3" json:"upgrades,omitempty"`
+	// UpgradeOrder permutes complete native tier records from their original order.
+	// [2, 3, 1] makes original tier 2 the first tier, tier 3 second and tier 1 third.
+	// It must contain each native tier exactly once. Costs remain unchanged.
+	// Upgrades in this entry address the resulting tiers. The same FILE_ABILITIES
+	// and separate-entry requirements apply, including when upgrades is empty.
+	UpgradeOrder []uint32 `protobuf:"varint,7,rep,packed,name=upgrade_order,json=upgradeOrder,proto3" json:"upgradeOrder,omitempty"`
 }
 
 func (x *Definition) Reset() {
@@ -461,6 +467,13 @@ func (x *Definition) GetCopyFields() map[string]string {
 func (x *Definition) GetUpgrades() []*Definition_Upgrade {
 	if x != nil {
 		return x.Upgrades
+	}
+	return nil
+}
+
+func (x *Definition) GetUpgradeOrder() []uint32 {
+	if x != nil {
+		return x.UpgradeOrder
 	}
 	return nil
 }
@@ -726,6 +739,7 @@ func (m *Definition) CloneVT() *Definition {
 	r.Fields = protobuf_go_lite.CloneMap(m.Fields)
 	r.CopyFields = protobuf_go_lite.CloneMap(m.CopyFields)
 	r.Upgrades = protobuf_go_lite.CloneVTSlice(m.Upgrades)
+	r.UpgradeOrder = protobuf_go_lite.CloneSlice(m.UpgradeOrder)
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -897,6 +911,9 @@ func (this *Definition) EqualVT(that *Definition) bool {
 		return false
 	}
 	if !protobuf_go_lite.EqualVTSliceImplicit(this.Upgrades, that.Upgrades, func() *Definition_Upgrade { return &Definition_Upgrade{} }) {
+		return false
+	}
+	if !protobuf_go_lite.EqualSlice(this.UpgradeOrder, that.UpgradeOrder) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -1733,6 +1750,11 @@ func (x *Definition) MarshalProtoJSON(s *json.MarshalState) {
 		}
 		s.WriteArrayEnd()
 	}
+	if len(x.UpgradeOrder) > 0 || s.HasField("upgradeOrder") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("upgradeOrder")
+		s.WriteUint32Array(x.UpgradeOrder)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -1804,6 +1826,13 @@ func (x *Definition) UnmarshalProtoJSON(s *json.UnmarshalState) {
 				}
 				x.Upgrades = append(x.Upgrades, v)
 			})
+		case "upgrade_order", "upgradeOrder":
+			s.AddField("upgrade_order")
+			if s.ReadNil() {
+				x.UpgradeOrder = nil
+				return
+			}
+			x.UpgradeOrder = s.ReadUint32Array()
 		}
 	})
 }
@@ -2171,6 +2200,11 @@ func (m *Definition) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i = protobuf_go_lite.EncodeRawBytes(dAtA, i, m.unknownFields)
 	}
+	if len(m.UpgradeOrder) > 0 {
+		i = protobuf_go_lite.EncodeVarintPacked(dAtA, i, m.UpgradeOrder)
+		i--
+		dAtA[i] = 0x3a
+	}
 	if len(m.Upgrades) > 0 {
 		for iNdEx := len(m.Upgrades) - 1; iNdEx >= 0; iNdEx-- {
 			size, err := m.Upgrades[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
@@ -2423,6 +2457,7 @@ func (m *Definition) SizeVT() (n int) {
 		l = e.SizeVT()
 		n += protobuf_go_lite.SizeMessage(1, l)
 	}
+	n += protobuf_go_lite.SizeVarintPacked(1, m.UpgradeOrder)
 	n += len(m.unknownFields)
 	return n
 }
@@ -2733,6 +2768,14 @@ func (x *Definition) MarshalProtoText() string {
 			} else {
 				protobuf_go_lite.TextWriteTextMarshaler(&sb, v)
 			}
+		}
+		protobuf_go_lite.TextWriteListEnd(&sb)
+	}
+	if len(x.UpgradeOrder) > 0 {
+		protobuf_go_lite.TextWriteListStart(&sb, initialLen, "upgrade_order")
+		for i, v := range x.UpgradeOrder {
+			protobuf_go_lite.TextWriteListSeparator(&sb, i)
+			protobuf_go_lite.TextWriteUint(&sb, v)
 		}
 		protobuf_go_lite.TextWriteListEnd(&sb)
 	}
@@ -3333,6 +3376,36 @@ func (m *Definition) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 7:
+			if wireType == 0 {
+				var v uint32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.UpgradeOrder = append(m.UpgradeOrder, v)
+			} else if wireType == 2 {
+				packedStart, postIndex, err := protobuf_go_lite.DecodeLengthDelimited(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				iNdEx = packedStart
+				var elementCount int
+				elementCount = protobuf_go_lite.PackedVarintElementCount(dAtA[iNdEx:postIndex])
+				if elementCount != 0 && len(m.UpgradeOrder) == 0 {
+					m.UpgradeOrder = make([]uint32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.UpgradeOrder = append(m.UpgradeOrder, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field UpgradeOrder", wireType)
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

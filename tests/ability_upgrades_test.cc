@@ -151,6 +151,198 @@ class AbilityUpgrades : public testing::Test {
   }
 };
 
+TEST_F(AbilityUpgrades, ReordersWholeNativeRecordsAndResolvesDestinationProperties) {
+  for (size_t index = 0; index < tiers.size(); ++index) {
+    tiers[index].rest.fill(static_cast<unsigned char>(index + 1));
+  }
+  const auto original_ability = ability;
+  const auto original_tiers = tiers;
+  const auto original_properties = properties;
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  Add(1, "AbilityCastRange", 236.22);
+  Add(2, "AbilityCooldown", -1);
+  Add(3, "BulletAmp", 0);
+  (*change.mutable_upgrades(2)->mutable_properties())["BulletAmpDuration"] = 0;
+  for (int repeat = 0; repeat < 3; ++repeat) {
+    const auto result = Apply();
+    ASSERT_TRUE(result) << result.error();
+    for (size_t index = 0; index < tiers.size(); ++index) {
+      EXPECT_EQ(std::memcmp(&tiers[index], &original_tiers[(index + 1) % 3], sizeof(Tier)), 0);
+    }
+    EXPECT_EQ(properties[1][0].values, (Bonuses{236.22, 236.22}));
+    EXPECT_EQ(properties[2][0].values, (Bonuses{-1, -1}));
+    EXPECT_EQ(properties[0][0].values, (Bonuses{0, 0}));
+    EXPECT_EQ(properties[0][1].values, (Bonuses{0, 0}));
+    EXPECT_EQ(std::memcmp(&ability, &original_ability, sizeof(ability)), 0);
+    undo.ForgetWorld();
+  }
+  undo.Restore();
+  EXPECT_EQ(std::memcmp(tiers.data(), original_tiers.data(), sizeof(tiers)), 0);
+  EXPECT_EQ(std::memcmp(properties.data(), original_properties.data(), sizeof(properties)), 0);
+}
+
+TEST_F(AbilityUpgrades, OrderOnlyUsesOriginalRecordsAcrossDifferentPermutations) {
+  const auto original = tiers;
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  ASSERT_TRUE(Apply());
+  change.clear_upgrade_order();
+  for (auto tier : {3, 1, 2}) {
+    change.add_upgrade_order(tier);
+  }
+  ASSERT_TRUE(Apply());
+  for (size_t index = 0; index < tiers.size(); ++index) {
+    EXPECT_EQ(std::memcmp(&tiers[index], &original[(index + 2) % 3], sizeof(Tier)), 0);
+  }
+  change.clear_upgrade_order();
+  Add(1, "AbilityCooldown", -2);
+  ASSERT_TRUE(Apply());
+  EXPECT_EQ(properties[2][0].values, (Bonuses{-2, -2}));
+  undo.Restore();
+  EXPECT_EQ(std::memcmp(tiers.data(), original.data(), sizeof(tiers)), 0);
+  EXPECT_EQ(properties[2][0].values, (Bonuses{-11.5, -8}));
+}
+
+TEST_F(AbilityUpgrades, RejectsBadOrdersAndMixedOrderOnlyEntriesBeforeNativeAccess) {
+  change.clear_upgrades();
+  for (const auto& order :
+       {std::vector<uint32_t>{0}, {2}, {1, 1}, {1, 3}, {1, 2, 4}, {1, 2, 3, 4}}) {
+    change.clear_upgrade_order();
+    for (auto tier : order) {
+      change.add_upgrade_order(tier);
+    }
+    EXPECT_FALSE(Apply());
+  }
+  change.clear_upgrade_order();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  change.set_file(Definition::FILE_MODIFIERS);
+  EXPECT_FALSE(Apply());
+  change.set_file(Definition::FILE_ABILITIES);
+  (*change.mutable_fields())["Class.field"] = 1;
+  EXPECT_FALSE(Apply());
+  change.clear_fields();
+  (*change.mutable_properties())["AbilityCooldown"] = 1;
+  EXPECT_FALSE(Apply());
+  change.clear_properties();
+  (*change.mutable_copy_fields())["Class.a"] = "Class.b";
+  EXPECT_FALSE(Apply());
+  EXPECT_EQ(reads, 0);
+  EXPECT_EQ(writes, 0);
+}
+
+TEST_F(AbilityUpgrades, RejectsIncompleteNativeOrderAndPropertiesMissingAfterReorder) {
+  for (auto tier : {1, 2}) {
+    change.add_upgrade_order(tier);
+  }
+  EXPECT_FALSE(Apply());
+  change.add_upgrade_order(3);
+  change.set_upgrade_order(0, 2);
+  change.set_upgrade_order(1, 3);
+  change.set_upgrade_order(2, 1);
+  EXPECT_FALSE(Apply());
+  EXPECT_EQ(writes, 0);
+}
+
+TEST_F(AbilityUpgrades, RejectsInlineOrUnreadablePropertyStorageEvenInUntouchedTiers) {
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  const auto original = tiers;
+  for (int count : {0, 1}) {
+    tiers[0].properties.count = count;
+    tiers[0].properties.data = reinterpret_cast<unsigned char*>(&tiers[2]);
+    EXPECT_FALSE(Apply());
+  }
+  tiers = original;
+  tiers[0].properties.data = reinterpret_cast<unsigned char*>(1);
+  EXPECT_FALSE(Apply());
+  EXPECT_EQ(writes, 0);
+}
+
+TEST_F(AbilityUpgrades, RejectsChangedTierCountAfterOriginalSnapshot) {
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  ASSERT_TRUE(Apply());
+  ability.tiers.count = 2;
+  change.clear_upgrade_order();
+  for (auto tier : {2, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  writes = 0;
+  EXPECT_FALSE(Apply());
+  EXPECT_EQ(writes, 0);
+}
+
+TEST_F(AbilityUpgrades, RollsBackPartialRecordAndBonusWritesIncludingFailureOnReapply) {
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  Add(1, "AbilityCastRange", 236.22);
+  Add(2, "AbilityCooldown", -1);
+  const auto original_tiers = tiers;
+  const auto original_properties = properties;
+  for (bool reapply : {false, true}) {
+    if (reapply) {
+      ASSERT_TRUE(Apply());
+    }
+    const auto before_tiers = tiers;
+    const auto before_properties = properties;
+    for (int failure = 1; failure <= 3; ++failure) {
+      int attempts = 0;
+      auto result = ApplyAbilityUpgrades(
+          reinterpret_cast<unsigned char*>(&ability), change, Layout(), undo,
+          [&](const void* p, void* out, size_t n) { return Read(p, out, n); },
+          [&](void* p, const void* in, size_t n) {
+            if (++attempts == failure) {
+              Write(p, in, n / 2);
+              return false;
+            }
+            return Write(p, in, n);
+          });
+      ASSERT_FALSE(result);
+      EXPECT_NE(result.error().find("restored"), std::string::npos);
+      EXPECT_EQ(std::memcmp(tiers.data(), before_tiers.data(), sizeof(tiers)), 0);
+      EXPECT_EQ(std::memcmp(properties.data(), before_properties.data(), sizeof(properties)), 0);
+    }
+  }
+  undo.Restore();
+  EXPECT_EQ(std::memcmp(tiers.data(), original_tiers.data(), sizeof(tiers)), 0);
+  EXPECT_EQ(std::memcmp(properties.data(), original_properties.data(), sizeof(properties)), 0);
+}
+
+TEST_F(AbilityUpgrades, FailedReorderRollbackRetainsOriginalRecordsForUnload) {
+  change.clear_upgrades();
+  for (auto tier : {2, 3, 1}) {
+    change.add_upgrade_order(tier);
+  }
+  const auto original = tiers;
+  int attempts = 0;
+  const auto result = ApplyAbilityUpgrades(
+      reinterpret_cast<unsigned char*>(&ability), change, Layout(), undo,
+      [&](const void* p, void* out, size_t n) { return Read(p, out, n); },
+      [&](void* p, const void* in, size_t n) {
+        if (++attempts == 1) {
+          Write(p, in, n / 2);
+        }
+        return false;
+      });
+  ASSERT_FALSE(result);
+  EXPECT_NE(result.error().find("rollback failed"), std::string::npos);
+  undo.Restore();
+  EXPECT_EQ(std::memcmp(tiers.data(), original.data(), sizeof(tiers)), 0);
+}
+
 TEST_F(AbilityUpgrades, ReplacesBothVariantsWithoutChangingOtherRowsOrNativeMetadata) {
   const auto original_ability = ability;
   const auto original_tiers = tiers;
