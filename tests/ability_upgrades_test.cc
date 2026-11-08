@@ -192,8 +192,13 @@ TEST_F(AbilityUpgrades, ReordersPropertiesPreservingNativeCostsAndCachedEffectOw
       EXPECT_EQ(tiers[index].rest, original_tiers[index].rest);
     }
     // Native property caches retain row addresses and read each row's owner mask.
-    EXPECT_EQ(properties[1][0].owner->mask, 2);
-    EXPECT_EQ(properties[2][0].owner->mask, 4);
+    const auto bonus = [](const Property& row, uint16_t mask) {
+      return (row.owner->mask & mask) ? row.values[0] : 0.0f;
+    };
+    EXPECT_FLOAT_EQ(bonus(properties[1][0], 1), 0);
+    EXPECT_FLOAT_EQ(bonus(properties[1][0], 3), 236.22);
+    EXPECT_FLOAT_EQ(bonus(properties[2][0], 3), 0);
+    EXPECT_FLOAT_EQ(bonus(properties[2][0], 7), -1);
     EXPECT_EQ(properties[0][0].owner->mask, 8);
     EXPECT_EQ(properties[1][0].values, (Bonuses{236.22, 236.22}));
     EXPECT_EQ(properties[2][0].values, (Bonuses{-1, -1}));
