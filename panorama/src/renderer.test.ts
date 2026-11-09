@@ -82,17 +82,23 @@ test('layout cleanup runs once, survives a failed handler, stops data callbacks 
   shop.style.visibility = 'visible'
   const panel = $.CreatePanel('Panel', hud, 'layout') as unknown as FakePanel
   let wake = () => {}
+  let listened = false
   Object.assign($, {
     GetContextPanel: () => panel,
     RegisterForUnhandledEvent: (
       _event: string,
       handler: (sound: string) => void,
     ) => {
+      listened = true
       wake = () => handler(layoutDataChanged)
       return 1
     },
   })
   const layout = await import('./layout.js')
+
+  // A layout listens as it loads, so one that only changes native panels
+  // still hears that it unloads.
+  expect(listened).toBe(true)
   const calls: unknown[] = []
   layout.data((value) => calls.push(value))
   layout.onUnload(() => {
