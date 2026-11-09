@@ -126,20 +126,30 @@ TEST(ConsoleVariables, NamedExposureAndBooleanReadbackRefuseMissingOrWrongData) 
   EXPECT_EQ(fixture.data, before);
 }
 
-TEST(ConsoleVariables, ServerChangesPreserveReplicationAndOtherVariables) {
+TEST(ConsoleVariables, ServerChangesReplicateOnlyWhatTheClientPutsBack) {
   // Bind the registry and mark the variable replicated.
   Fixture fixture;
   auto variables = ConsoleVariables::Bind(fixture.registry.data());
   ASSERT_TRUE(variables);
   const auto untouched = fixture.unrelated;
-  const uint64_t original = 0x100004012 | (1ull << 13);
-  std::memcpy(fixture.data.data() + 0x30, &original, sizeof(original));
+  const uint64_t replicated = 1ull << 13;
+  const uint64_t release = 1ull << 19;
+  uint64_t flags = 0x100004012 | replicated;
+  std::memcpy(fixture.data.data() + 0x30, &flags, sizeof(flags));
 
-  // Allowing server changes keeps only the replicated flag.
+  // A replicated variable the client keeps after it leaves stops replicating.
   ASSERT_TRUE(variables->AllowServerChanges("citadel_trooper_spawn_enabled"));
-  uint64_t flags;
   std::memcpy(&flags, fixture.data.data() + 0x30, sizeof(flags));
-  EXPECT_EQ(flags, 1ull << 13);
+  EXPECT_EQ(flags, 0u);
+
+  // A replicated variable the client puts back keeps replicating.
+  flags = 0x100004012 | replicated | release;
+  std::memcpy(fixture.data.data() + 0x30, &flags, sizeof(flags));
+  ASSERT_TRUE(variables->AllowServerChanges("citadel_trooper_spawn_enabled"));
+  std::memcpy(&flags, fixture.data.data() + 0x30, sizeof(flags));
+  EXPECT_EQ(flags, replicated | release);
+
+  // Other variables stay untouched and a missing name is refused.
   EXPECT_EQ(fixture.unrelated, untouched);
   EXPECT_EQ(fixture.data[0x58], 1);
   EXPECT_FALSE(variables->AllowServerChanges("missing"));
