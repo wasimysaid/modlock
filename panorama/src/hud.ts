@@ -93,8 +93,8 @@ export type Dispatch = (event: string, ...values: unknown[]) => void
  * screen that changes anything else leaves the player's choice be.
  *
  * The game captures the cursor itself when the local hero arrives, as on
- * joining a server, which drops a free sent before it. A free cursor so waits
- * for the hero, and is freed again on each arrival.
+ * joining a server, which drops a free sent before it. So a free waits for the
+ * hero and is sent again on each arrival.
  *
  * Capturing the cursor also drops Panorama's input focus within the game's
  * HUD, which holds the mods' panels and the stock HUD they hide. A button or
@@ -111,8 +111,8 @@ export class Cursor {
   /** asked is the count of asks for the cursor the last screen held. */
   private asked = 0
 
-  /** present is true while the local hero is in the game's HUD. */
-  private present = false
+  /** heroPresent is true while the local hero is in the game's HUD. */
+  private heroPresent = false
 
   constructor(
     private readonly dispatch: Dispatch,
@@ -126,19 +126,18 @@ export class Cursor {
     const again = free && asks !== this.asked
     this.asked = asks
     this.wanted = free
-    if ((free && !this.present) || (free === this.free && !again)) return
+    if ((free && !this.heroPresent) || (free === this.free && !again)) return
     this.send(free)
   }
 
   /** hero tells the cursor whether the local hero is in the game's HUD. */
   hero(present: boolean): void {
     // Only the hero's arrival changes the game's cursor.
-    const arrived = present && !this.present
-    this.present = present
+    const arrived = present && !this.heroPresent
+    this.heroPresent = present
     if (!arrived) return
 
-    // The hero's arrival captured the cursor, so a screen that frees it
-    // frees it again.
+    // The arrival captured the cursor; send the free again if a screen wants it.
     this.free = false
     if (this.wanted) this.send(true)
   }

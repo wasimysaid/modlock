@@ -1020,7 +1020,6 @@ test('frees the cursor a root asks for and hands the keyboard back when it captu
 })
 
 test('frees the cursor once the local hero is in the HUD, because its arrival captures the cursor', () => {
-  // The HUD names the hero's abilities only once its pawn arrives.
   const hud = new FakePanel('CitadelHud', 'Hud')
   const abilities = $.CreatePanel(
     'Panel',
@@ -1038,7 +1037,6 @@ test('frees the cursor once the local hero is in the HUD, because its arrival ca
   })
   expect(heroInHud(hud)).toBe(false)
 
-  // A screen that frees the cursor before the hero arrives waits for it.
   const sent: unknown[][] = []
   const cursor = new Cursor((...event) => sent.push(event), hud)
   cursor.hero(heroInHud(hud))
@@ -1051,15 +1049,12 @@ test('frees the cursor once the local hero is in the HUD, because its arrival ca
   cursor.hero(true)
   expect(sent).toEqual([['CitadelConCommand', 'hud_free_cursor 1']])
 
-  // A new map takes the hero away, and its next arrival captures the cursor
-  // again, so the screen that still frees it frees it again.
   sent.length = 0
   cursor.hero(false)
   cursor.set(true, 1)
   cursor.hero(true)
   expect(sent).toEqual([['CitadelConCommand', 'hud_free_cursor 1']])
 
-  // A screen that no longer frees it leaves the captured cursor be.
   sent.length = 0
   cursor.set(false, 1)
   cursor.hero(false)
