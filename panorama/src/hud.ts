@@ -92,17 +92,27 @@ export type Dispatch = (event: string, ...values: unknown[]) => void
  * cursor away with the game's own keys, which this page is not told, so a
  * screen that changes anything else leaves the player's choice be.
  *
+ * The game captures the cursor itself when the local hero arrives, as on
+ * joining a server, which drops a free sent before it. A free cursor so waits
+ * for the hero, and is freed again on each arrival.
+ *
  * Capturing the cursor also drops Panorama's input focus within the game's
  * HUD, which holds the mods' panels and the stock HUD they hide. A button or
  * entry the player clicked while the cursor was free keeps the keyboard
  * otherwise, so movement and the camera stay with it until the next click.
  */
 export class Cursor {
-  /** free is the cursor state last sent to the game. */
+  /** free is the cursor state the game holds. */
   private free = false
+
+  /** wanted is true while the last screen frees the cursor. */
+  private wanted = false
 
   /** asked is the count of asks for the cursor the last screen held. */
   private asked = 0
+
+  /** present is true while the local hero is in the game's HUD. */
+  private present = false
 
   constructor(
     private readonly dispatch: Dispatch,
@@ -115,8 +125,25 @@ export class Cursor {
     // already free here.
     const again = free && asks !== this.asked
     this.asked = asks
-    if (free === this.free && !again) return
+    this.wanted = free
+    if ((free && !this.present) || (free === this.free && !again)) return
+    this.send(free)
+  }
 
+  /** hero tells the cursor whether the local hero is in the game's HUD. */
+  hero(present: boolean): void {
+    // Only the hero's arrival changes the game's cursor.
+    const arrived = present && !this.present
+    this.present = present
+    if (!arrived) return
+
+    // The hero's arrival captured the cursor, so a screen that frees it
+    // frees it again.
+    this.free = false
+    if (this.wanted) this.send(true)
+  }
+
+  private send(free: boolean): void {
     // Hand the keyboard back to the game before it takes the cursor, then
     // tell the game.
     this.free = free
@@ -125,6 +152,19 @@ export class Cursor {
     }
     this.dispatch('CitadelConCommand', `hud_free_cursor ${free ? 1 : 0}`)
   }
+}
+
+/**
+ * heroInHud reports whether the game's HUD names the local hero's abilities,
+ * which it does once the hero's pawn arrives.
+ */
+export function heroInHud(hud: Panel): boolean {
+  return (
+    hud
+      .FindChildTraverse('hud_signature')
+      ?.FindChildrenWithClassTraverse('ability_name')
+      .some((label) => label.text !== '') ?? false
+  )
 }
 
 /** hiddenParts lists the parts of the game's HUD that screen's roots hide. */

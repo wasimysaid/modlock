@@ -6,7 +6,14 @@
 
 import { Bridge } from './bridge.js'
 import { AddonLayouts, Drawing, inputCommand, pressCommand } from './draw.js'
-import { Cursor, Hud, cursorAsks, cursorFreed, hiddenParts } from './hud.js'
+import {
+  Cursor,
+  Hud,
+  cursorAsks,
+  cursorFreed,
+  heroInHud,
+  hiddenParts,
+} from './hud.js'
 
 /**
  * defaultBridge is the relay page a package without the session's boot script
@@ -71,6 +78,9 @@ const stock = new Hud(
 const cursor = new Cursor((event, ...values) => {
   $.DispatchEvent(event, ...values)
 }, game)
+$.RegisterForUnhandledEvent('CitadelHudUpdate', () => {
+  cursor.hero(heroInHud(game))
+})
 new Bridge(
   context.FindChildTraverse('ModlockUiState')!,
   // The session's boot script names the page for its relay and port.
