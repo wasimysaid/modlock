@@ -43,7 +43,8 @@ class MODLOCK_API ConsoleVariables {
   [[nodiscard]] std::expected<void, std::string> Expose(const char* name) const;
   // AllowServerChanges exposes one named variable and removes its cheat flag.
   // Use only for settings controlled by the host plugin; this does not enable
-  // sv_cheats or change any value. Replication and command-source flags remain.
+  // sv_cheats or change any value. A replicated variable stops replicating
+  // unless it carries the release flag. Command-source flags remain.
   [[nodiscard]] std::expected<void, std::string> AllowServerChanges(const char* name) const;
   // ReadBool copies the current slot-zero value, refusing non-Boolean variables.
   [[nodiscard]] std::expected<bool, std::string> ReadBool(const char* name) const;

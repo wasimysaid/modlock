@@ -32,7 +32,9 @@ constexpr Registry kVariables{0x4a, 0x50, 0x58, 16, 8, true};
 constexpr Registry kCommands{0x102, 0x108, 0x110, 0x38, 0x30, false};
 constexpr uint16_t kInvalidIndex = 0xffff;
 constexpr uint64_t kExposureFlags = (1ull << 1) | (1ull << 4) | (1ull << 32);
+constexpr uint64_t kReplicatedFlag = 1ull << 13;
 constexpr uint64_t kCheatFlag = 1ull << 14;
+constexpr uint64_t kReleaseFlag = 1ull << 19;
 
 // ConVarData x64 layout from sourcesdk public/tier1/convar.h. Every entry
 // starts with its name.
@@ -255,7 +257,14 @@ std::expected<void, std::string> ConsoleVariables::Expose(const char* name) cons
 }
 
 std::expected<void, std::string> ConsoleVariables::AllowServerChanges(const char* name) const {
-  return ClearFlags(name, kExposureFlags | kCheatFlag);
+  auto data = Find(name);
+  if (!data) {
+    return std::unexpected(data.error());
+  }
+  // A client keeps a replicated value that lacks the release flag after it
+  // leaves, and its own local servers then run with it.
+  const bool released = Load<uint64_t>(*data + kFlagsOffset) & kReleaseFlag;
+  return ClearFlags(name, kExposureFlags | kCheatFlag | (released ? 0 : kReplicatedFlag));
 }
 
 std::expected<bool, std::string> ConsoleVariables::ReadBool(const char* name) const {

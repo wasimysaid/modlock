@@ -37,6 +37,7 @@ remaining checks.
 | Native panel changes | Panorama renderer and layout library | `Modlock.native` is the one way a layout changes the game's own panels; every change is released when the layout unloads, and a released visibility goes back to the game's own CSS |
 | Session commands | Relay and renderer | The relay stream carries `connect` to a loopback port and `disconnect`, which the renderer runs as console commands |
 | Pawn observer service fields | Native entity field layer | Existing field reads and writes resolve `CPlayer_ObserverServices` through a pawn's schema-declared observer services pointer |
+| Server-only mode settings | Native console layer | A console variable a mode sets reaches the player only if the game puts it back when the player leaves |
 
 A scripted press bypasses the combined input block mask, including blocks from
 other loaded mods. It does not remove those blocks or change the physical input
@@ -58,6 +59,14 @@ field storage/type checks and write replication follow the ordinary field path.
 This extension does not select spectator targets or repair client camera state.
 Consumers can require the packaging capability `observer-service-fields-v1` when
 adopting this runtime revision; capability metadata belongs to their packaging.
+
+A client keeps a replicated console variable it got from a server after it
+leaves, unless the variable carries the `release` flag, and its own menu and
+sandbox servers then run with the mode's value: zero kill rewards after Bebop
+Wars, no zipline start after any mode built on `arena`. So `serverCommand`
+clears `replicated` from such a variable before it sets it, and only the
+server has the mode's value. Variables with `release`, such as
+`citadel_koth_enabled` and `sv_cheats`, still replicate.
 
 ## Changing the game's HUD
 

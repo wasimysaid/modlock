@@ -1229,8 +1229,11 @@ run('changelevel', 'street_test')
 ```
 
 Each call runs one line through `serverCommand`, which may set a
-development-only or cheat-protected variable. A variable whose value is a
-vector or a color has no typed setter; set it with `serverCommand`.
+development-only or cheat-protected variable. A value reaches players only for
+a replicated variable the game puts back when they leave, such as
+`citadel_koth_enabled`; others, such as `citadel_start_players_on_zipline`,
+stay on the server. A variable whose value is a vector or a color has no typed
+setter; set it with `serverCommand`.
 
 A mod's console lines change the game and nothing around it. They may set the
 game's rules and bots, change or reload the map, kick a player, quit, set the
