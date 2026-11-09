@@ -70,9 +70,7 @@ const stock = new Hud(
   (seconds, callback) => {
     $.Schedule(seconds, callback)
   },
-  {
-    CreatePanel: (type, parent, id) => $.CreatePanel(type, parent as Panel, id),
-  },
+  $,
 )
 const cursor = new Cursor((event, ...values) => {
   $.DispatchEvent(event, ...values)
@@ -90,6 +88,5 @@ new Bridge(
     stock.draw(hiddenParts(screen))
     cursor.set(cursorFreed(screen), cursorAsks(screen))
   },
-  // The session alone sends commands, the two the bridge accepts.
   (command) => $.DispatchEvent('CitadelConCommand', command),
 )

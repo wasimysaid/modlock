@@ -21,7 +21,7 @@
 //
 //   Modlock.native.hide('CitadelHudHeroShop')
 //   const tip = Modlock.native.group()
-//   tip.hide(tooltip.FindChildTraverse('ModName'))
+//   tip.relabel(tooltip.FindChildTraverse('ModName'), 'Snow Globe', ['ModName'])
 //   tip.release()
 
 import {
@@ -31,7 +31,7 @@ import {
   layoutUnloading,
   routeAttribute,
 } from './data.js'
-import { NativeChanges, type NativePanorama } from './native.js'
+import { NativeChanges } from './native.js'
 
 /** Handler receives a value the mod sent, or undefined for none. */
 export type Handler = (value: unknown) => void
@@ -51,10 +51,7 @@ const watches: Watch[] = []
 const cleanup: (() => void)[] = []
 let unloaded = false
 
-const panorama: NativePanorama = {
-  CreatePanel: (type, parent, id) => $.CreatePanel(type, parent as Panel, id),
-}
-const owners = [new NativeChanges(panorama, () => panel)]
+const owners = [new NativeChanges($, () => panel)]
 
 /**
  * native changes the game's own panels for this layout; group makes another
@@ -62,7 +59,7 @@ const owners = [new NativeChanges(panorama, () => panel)]
  */
 export const native = Object.assign(owners[0]!, {
   group(): NativeChanges {
-    const owner = new NativeChanges(panorama, () => panel)
+    const owner = new NativeChanges($, () => panel)
     owners.push(owner)
     return owner
   },
