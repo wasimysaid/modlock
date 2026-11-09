@@ -15,7 +15,6 @@ export interface NativePanel {
   visible: boolean
   hittest: boolean
   hittestchildren: boolean
-  text: string
   IsValid(): boolean
   GetParent(): NativePanel | null
   FindChildTraverse(id: string): NativePanel | null
@@ -29,7 +28,6 @@ export interface NativePanel {
 /** NativePanorama is the part of the game's script API native changes use. */
 export interface NativePanorama {
   CreatePanel(type: string, parent: NativePanel, id: string): NativePanel
-  Localize(token: string, panel: NativePanel): string
 }
 
 /**
@@ -51,17 +49,11 @@ export interface NativeFlags {
  */
 export type Placement = { before: NativeTarget } | { after: NativeTarget }
 
-/** TextRestore restores a label's text as the game localizes it. */
-export interface TextRestore {
-  token: string
-  scope?: NativePanel
-}
-
 /** Flag names a hit-testing field. */
 type Flag = 'hittest' | 'hittestchildren'
 
 /** Key names a style property as `style.<name>`, or a panel field. */
-type Key = `style.${string}` | Flag | 'text'
+type Key = `style.${string}` | Flag
 
 type Value = string | boolean | null
 
@@ -78,7 +70,6 @@ export const savedAttribute = 'modlock_native'
 export class NativeChanges {
   private readonly owner = `${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}`
   private readonly held = new Map<NativePanel, Set<Key>>()
-  private readonly restores = new Map<NativePanel, TextRestore>()
   private readonly created: NativePanel[] = []
 
   constructor(
@@ -111,20 +102,6 @@ export class NativeChanges {
 
   hide(target: NativeTarget): NativePanel | null {
     return this.style(target, { visibility: 'collapse' })
-  }
-
-  /**
-   * text sets a label's text; release restores the saved text, or with
-   * restore the game's localized text, for a label the game rewrites.
-   */
-  text(
-    target: NativeTarget,
-    value: string,
-    restore?: TextRestore,
-  ): NativePanel | null {
-    const panel = this.write(target, [['text', value]])
-    if (panel && restore) this.restores.set(panel, restore)
-    return panel
   }
 
   /**
@@ -166,15 +143,8 @@ export class NativeChanges {
         if (!entry) continue
         entry.owners = entry.owners.filter((owner) => owner !== this.owner)
         if (entry.owners.length !== 0) continue
-        const restore = key === 'text' ? this.restores.get(panel) : undefined
         if (key === 'style.visibility') panel.visible = true
-        write(
-          panel,
-          key,
-          restore
-            ? this.panorama.Localize(restore.token, restore.scope ?? panel)
-            : entry.original,
-        )
+        write(panel, key, entry.original)
         delete saved[key]
       }
       writeSaved(panel, saved)
@@ -183,7 +153,6 @@ export class NativeChanges {
       if (panel.IsValid()) panel.DeleteAsync(0)
     }
     this.held.clear()
-    this.restores.clear()
     this.created.length = 0
   }
 
@@ -239,14 +208,12 @@ export function top(panel: NativePanel): NativePanel {
 
 function read(panel: NativePanel, key: Key): Value {
   if (key.startsWith('style.')) return panel.style[key.slice(6)] ?? null
-  return panel[key as Flag | 'text']
+  return panel[key as Flag]
 }
 
 function write(panel: NativePanel, key: Key, value: Value): void {
   if (key.startsWith('style.')) {
     panel.style[key.slice(6)] = value as string | null
-  } else if (key === 'text') {
-    panel.text = value as string
   } else {
     panel[key as Flag] = value as boolean
   }

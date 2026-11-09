@@ -62,7 +62,7 @@ adopting this runtime revision; capability metadata belongs to their packaging.
 ## Changing the game's HUD
 
 A layout changes the game's own panels only through `Modlock.native`. It never
-writes a native panel's style, fields or text itself:
+writes a native panel's style or fields itself:
 
 ```ts
 type NativeTarget = Panel | string | null | undefined // an id is found from the interface's root
@@ -71,7 +71,6 @@ interface NativeChanges {
   style(target: NativeTarget, values: { [property: string]: string | null }): Panel | null
   set(target: NativeTarget, values: { visible?: boolean; hittest?: boolean; hittestchildren?: boolean }): Panel | null
   hide(target: NativeTarget): Panel | null
-  text(target: NativeTarget, value: string, restore?: { token: string; scope?: Panel }): Panel | null
   create(type: string, parent: NativeTarget, id: string, placement?: { before: NativeTarget } | { after: NativeTarget }): Panel | null
   release(): void
 }
@@ -103,8 +102,10 @@ applies only the game's own CSS and leaves `visible` as it was, and setting
 before it writes the original. A panel whose original was no inline style is
 then shown or hidden by the game's CSS, as a fresh game has it.
 
-`text` restores the saved text, or with `restore`, `$.Localize(token, scope)`.
-Use the latter for labels the engine rewrites, such as pooled tooltips.
+A layout never writes a native label's text. Once a script writes it, the game
+stops filling the label, and nothing gives that back: not the saved text, the
+token, nor `SetLocString` (measured in Deadlock). To show its own text, a
+layout hides the native label and creates its own label beside it.
 
 `create` makes a panel inside a native panel, which the owner deletes on
 release. `placement` puts it just before or after one of the parent's

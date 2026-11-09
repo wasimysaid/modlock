@@ -21,7 +21,7 @@
 //
 //   Modlock.native.hide('CitadelHudHeroShop')
 //   const tip = Modlock.native.group()
-//   tip.text(name, 'Snow Globe', { token: '{s:ability_name}', scope: tooltip })
+//   tip.hide(tooltip.FindChildTraverse('ModName'))
 //   tip.release()
 
 import {
@@ -53,7 +53,6 @@ let unloaded = false
 
 const panorama: NativePanorama = {
   CreatePanel: (type, parent, id) => $.CreatePanel(type, parent as Panel, id),
-  Localize: (token, scope) => $.Localize(token, scope),
 }
 const owners = [new NativeChanges(panorama, () => panel)]
 

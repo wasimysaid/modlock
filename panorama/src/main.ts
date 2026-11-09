@@ -72,7 +72,6 @@ const stock = new Hud(
   },
   {
     CreatePanel: (type, parent, id) => $.CreatePanel(type, parent as Panel, id),
-    Localize: (token, panel) => $.Localize(token, panel),
   },
 )
 const cursor = new Cursor((event, ...values) => {

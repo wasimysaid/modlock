@@ -1499,18 +1499,12 @@ function pack(frame: Frame): string {
 }
 
 test("native changes restore each panel's original once its last owner releases it", () => {
-  // The game's HUD holds a shop the game shows with a style of its own, and
-  // a pooled tooltip's label.
+  // The game's HUD holds a shop the game shows with a style of its own.
   const hud = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
     $.CreatePanel('Panel', parent, id) as unknown as FakePanel
   const shop = add(hud, 'CitadelHudHeroShop')
   shop.style.visibility = 'visible'
-  const tooltip = add(hud, 'Tooltip')
-  const name = add(tooltip, 'ModName')
-  name.text = 'Extra Health'
-  const cost = add(tooltip, 'ModCost')
-  cost.text = '500'
 
   // Two owners, as two layouts or a layout and the hud, share one original.
   const first = new NativeChanges($, () => hud)
@@ -1533,15 +1527,6 @@ test("native changes restore each panel's original once its last owner releases 
   expect(first.style(undefined, { opacity: '0' })).toBeNull()
   expect(first.set('NoSuchPanel', { visible: false })).toBeNull()
   expect(first.create('Panel', null, 'Cover')).toBeNull()
-
-  // Text comes back as the game localizes it, or as it was.
-  const tip = new NativeChanges($, () => hud)
-  tip.text(name, 'Snow Globe', { token: '{s:mod_name}', scope: tooltip })
-  tip.text(cost, '0')
-  expect([name.text, cost.text]).toEqual(['Snow Globe', '0'])
-  tip.release()
-  expect(name.text).toBe('{s:mod_name} {}')
-  expect(cost.text).toBe('500')
 
   // A created panel goes where it is placed, and release deletes it.
   const slot = add(hud, 'slot')
