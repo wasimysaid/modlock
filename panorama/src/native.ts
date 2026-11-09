@@ -11,6 +11,8 @@
 
 /** NativePanel is the part of a game panel native changes use. */
 export interface NativePanel {
+  readonly id: string
+  text: string
   readonly style: Record<string, string | null>
   visible: boolean
   hittest: boolean
@@ -23,6 +25,7 @@ export interface NativePanel {
   DeleteAsync(seconds: number): void
   MoveChildBefore(child: NativePanel, before: NativePanel): void
   MoveChildAfter(child: NativePanel, after: NativePanel): void
+  AddClass(name: string): void
 }
 
 /** NativePanorama is the part of the game's script API native changes use. */
@@ -71,6 +74,7 @@ export class NativeChanges {
   private readonly owner = `${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}`
   private readonly held = new Map<NativePanel, Set<Key>>()
   private readonly created: NativePanel[] = []
+  private readonly labels = new Map<NativePanel, NativePanel>()
 
   constructor(
     private readonly panorama: NativePanorama,
@@ -130,6 +134,34 @@ export class NativeChanges {
   }
 
   /**
+   * relabel shows text in place of a native label: it hides the label and
+   * draws its own, with the label's id and the given classes, right after it.
+   * A label that already reads text is left alone. Writing a native label's
+   * text would stop the game filling it for good.
+   */
+  relabel(
+    target: NativeTarget,
+    text: string,
+    classes: string[] = [],
+  ): NativePanel | null {
+    // Leave the mode's own labels alone, and a native one already reading text.
+    const label = this.find(target)
+    if (!label || [...this.labels.values()].includes(label)) return null
+    let mine = this.labels.get(label)
+    if (!mine && label.text === text) return null
+    if (!mine?.IsValid()) {
+      mine = this.create('Label', label.GetParent(), label.id, {
+        after: label,
+      })!
+      for (const name of classes) mine.AddClass(name)
+      this.labels.set(label, mine)
+    }
+    this.hide(label)
+    mine.text = text
+    return mine
+  }
+
+  /**
    * release restores each property no other owner holds and deletes the
    * panels this owner created.
    */
@@ -154,6 +186,7 @@ export class NativeChanges {
     }
     this.held.clear()
     this.created.length = 0
+    this.labels.clear()
   }
 
   private sibling(

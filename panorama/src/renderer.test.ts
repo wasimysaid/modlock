@@ -1542,6 +1542,58 @@ test("native changes restore each panel's original once its last owner releases 
   expect(slot.children).toEqual([image, mask])
 })
 
+test("relabel shows a mode's text in a label of its own and gives the native label back", () => {
+  const hud = new FakePanel('CitadelHud', 'Hud')
+  const tooltip = $.CreatePanel('Panel', hud, 'Tooltip') as unknown as FakePanel
+  const label = (id: string, text: string) => {
+    const panel = $.CreatePanel('Label', tooltip, id) as unknown as FakePanel
+    panel.AddClass(id)
+    panel.text = text
+    return panel
+  }
+  const name = label('ModName', 'Cold Front')
+  const cost = label('ModCost', '800')
+  const owner = new NativeChanges($, () => hud)
+
+  // The native label keeps its text; the mode's sits right after it, styled alike.
+  const mine = owner.relabel(name, 'Snow Globe', [
+    'ModName',
+  ]) as unknown as FakePanel
+  expect(tooltip.children).toEqual([name, mine, cost])
+  expect([mine.id, mine.classes, mine.text]).toEqual([
+    'ModName',
+    ['ModName'],
+    'Snow Globe',
+  ])
+  expect([name.text, name.visible]).toEqual(['Cold Front', false])
+
+  // A sweep re-applies to the same label, and never relabels its own.
+  for (const found of tooltip.FindChildrenWithClassTraverse('ModName'))
+    owner.relabel(found, 'Snow Globe 2', ['ModName'])
+  expect(tooltip.children).toEqual([name, mine, cost])
+  expect(mine.text).toBe('Snow Globe 2')
+
+  // A label that already reads the mode's text is left alone.
+  expect(owner.relabel(cost, '800')).toBeNull()
+  expect(owner.relabel(null, '800')).toBeNull()
+  expect([cost.visible, tooltip.children.length]).toEqual([true, 3])
+
+  owner.release()
+  expect(tooltip.children).toEqual([name, cost])
+  expect([name.text, name.visible, name.style.visibility]).toEqual([
+    'Cold Front',
+    true,
+    null,
+  ])
+
+  // After a release the owner draws a fresh label.
+  const again = owner.relabel(name, 'Sprint', [
+    'ModName',
+  ]) as unknown as FakePanel
+  expect(again).not.toBe(mine)
+  expect(tooltip.children).toEqual([name, again, cost])
+})
+
 test("a released visibility leaves each panel to the game's own CSS", () => {
   const hud = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>

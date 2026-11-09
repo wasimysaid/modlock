@@ -72,6 +72,7 @@ interface NativeChanges {
   set(target: NativeTarget, values: { visible?: boolean; hittest?: boolean; hittestchildren?: boolean }): Panel | null
   hide(target: NativeTarget): Panel | null
   create(type: string, parent: NativeTarget, id: string, placement?: { before: NativeTarget } | { after: NativeTarget }): Panel | null
+  relabel(target: NativeTarget, text: string, classes?: string[]): Panel | null
   release(): void
 }
 
@@ -105,7 +106,16 @@ then shown or hidden by the game's CSS, as a fresh game has it.
 A layout never writes a native label's text. Once a script writes it, the game
 stops filling the label, and nothing gives that back: not the saved text, the
 token, nor `SetLocString` (measured in Deadlock). To show its own text, a
-layout hides the native label and creates its own label beside it.
+layout calls `relabel`. It hides the native label and creates a label of its
+own right after it, with the native label's id and the classes given, and
+returns that label. Calling it again on each sweep rewrites the same label, and
+a native label that already reads the text is left alone. Release deletes the
+label and shows the native one again:
+
+```js
+const tip = Modlock.native.group()
+tip.relabel(tooltip.FindChildTraverse('ModName'), 'Snow Globe', ['ModName'])
+```
 
 `create` makes a panel inside a native panel, which the owner deletes on
 release. `placement` puts it just before or after one of the parent's
