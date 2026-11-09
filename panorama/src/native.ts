@@ -38,7 +38,7 @@ export interface NativePanorama {
  */
 export type NativeTarget = NativePanel | string | null | undefined
 
-/** NativeFlags are the panel fields native changes set. */
+/** NativeFlags are the panel fields set takes; visible sets style.visibility. */
 export interface NativeFlags {
   visible?: boolean
   hittest?: boolean
@@ -57,7 +57,7 @@ export interface TextRestore {
   scope?: NativePanel
 }
 
-/** Flag names a hit-testing field; visible is style.visibility's to keep. */
+/** Flag names a hit-testing field. */
 type Flag = 'hittest' | 'hittestchildren'
 
 /** Key names a style property as `style.<name>`, or a panel field. */

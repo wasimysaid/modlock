@@ -1439,18 +1439,14 @@ function pack(frame: Frame): string {
   return text
 }
 
-test("native changes hand each panel back to the game's own CSS once its last owner releases it", () => {
-  // The game's HUD holds a shop the game shows with a style of its own, an
-  // ability slot and a minimap its CSS hides, and a pooled tooltip's label.
+test("native changes restore each panel's original once its last owner releases it", () => {
+  // The game's HUD holds a shop the game shows with a style of its own, and
+  // a pooled tooltip's label.
   const hud = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
     $.CreatePanel('Panel', parent, id) as unknown as FakePanel
   const shop = add(hud, 'CitadelHudHeroShop')
   shop.style.visibility = 'visible'
-  const slot1 = add(hud, 'slot_signature_1')
-  const slot2 = add(hud, 'slot_signature_2')
-  const minimap = add(hud, 'minimap_persp')
-  minimap.loadCss('collapse')
   const tooltip = add(hud, 'Tooltip')
   const name = add(tooltip, 'ModName')
   name.text = 'Extra Health'
@@ -1472,26 +1468,6 @@ test("native changes hand each panel back to the game's own CSS once its last ow
   expect(shop.style.opacity).toBeNull()
   expect([shop.hittest, shop.hittestchildren]).toEqual([true, true])
   expect(shop.GetAttributeString(savedAttribute, '')).toBe('')
-
-  // A collapsed slot shows again, hidden by style or by visible, and the
-  // minimap stays as its CSS has it, with no inline style left on any.
-  first.hide(slot1)
-  first.set(slot2, { visible: false })
-  first.hide(minimap)
-  expect([slot1.visible, slot2.visible, minimap.visible]).toEqual([
-    false,
-    false,
-    false,
-  ])
-  first.release()
-  for (const [panel, visible] of [
-    [slot1, true],
-    [slot2, true],
-    [minimap, false],
-  ] as const) {
-    expect([panel.style.visibility, panel.visible]).toEqual([null, visible])
-    expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
-  }
 
   // A missing panel changes nothing.
   expect(first.hide(null)).toBeNull()
@@ -1527,9 +1503,35 @@ test("native changes hand each panel back to the game's own CSS once its last ow
   expect(slot.children).toEqual([image, mask])
 })
 
+test("a released visibility leaves each panel to the game's own CSS", () => {
+  const hud = new FakePanel('CitadelHud', 'Hud')
+  const add = (parent: FakePanel, id: string) =>
+    $.CreatePanel('Panel', parent, id) as unknown as FakePanel
+  const slot1 = add(hud, 'slot_signature_1')
+  const slot2 = add(hud, 'slot_signature_2')
+  const minimap = add(hud, 'minimap_persp')
+  minimap.loadCss('collapse')
+  const first = new NativeChanges($, () => hud)
+  first.hide(slot1)
+  first.set(slot2, { visible: false })
+  first.hide(minimap)
+  expect([slot1.visible, slot2.visible, minimap.visible]).toEqual([
+    false,
+    false,
+    false,
+  ])
+  first.release()
+  for (const [panel, visible] of [
+    [slot1, true],
+    [slot2, true],
+    [minimap, false],
+  ] as const) {
+    expect([panel.style.visibility, panel.visible]).toEqual([null, visible])
+    expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
+  }
+})
+
 test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => {
-  // The game's HUD holds the top bar, the shop, and on the mode's map a
-  // minimap its CSS shows and testing tools its CSS hides.
   const game = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
     $.CreatePanel('Panel', parent, id) as unknown as FakePanel
@@ -1540,23 +1542,19 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
   const testing = add(game, 'hud_hero_testing')
   testing.loadCss('collapse')
 
-  // A mode's layout hides the shop through native changes, which its
-  // library releases once the drawing marks it unloading.
   const events: string[] = []
   const mode = new NativeChanges($, () => game)
   const root = add(game, 'ModlockUi')
   const layouts = new AddonLayouts()
+  const releaseModeOnUnload = () => {
+    const layout = root.descendants().find((panel) => panel.layout !== '')
+    if (layout?.GetAttributeString(layoutUnloading, '') === '1') {
+      events.push(`unloading, shop shown ${shop.visible}`)
+      mode.release()
+    }
+  }
   const drawing = new Drawing(
-    {
-      ...$,
-      DispatchEvent: () => {
-        const layout = root.descendants().find((panel) => panel.layout !== '')
-        if (layout?.GetAttributeString(layoutUnloading, '') === '1') {
-          events.push(`unloading, shop shown ${shop.visible}`)
-          mode.release()
-        }
-      },
-    },
+    { ...$, DispatchEvent: releaseModeOnUnload },
     root,
     () => {},
     layouts,
@@ -1585,8 +1583,6 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
   mode.hide(shop)
   expect([scores.visible, shop.visible]).toEqual([false, false])
 
-  // The screen ends: the layout unloads first, then the top bar and the shop
-  // show again, and nothing pins the mode's map's HUD.
   show(Screen.create({}))
   expect(events).toEqual(['unloading, shop shown false'])
   expect([scores.visible, shop.visible]).toEqual([true, true])
@@ -1595,8 +1591,6 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
     expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
   }
 
-  // Back in the sandbox the game's CSS hides the minimap and shows the
-  // testing tools.
   minimap.loadCss('collapse')
   testing.loadCss('visible')
   expect([minimap.visible, testing.visible]).toEqual([false, true])
