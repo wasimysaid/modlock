@@ -52,15 +52,12 @@ export interface NativeFlags {
  */
 export type Placement = { before: NativeTarget } | { after: NativeTarget }
 
-/** Flag names a hit-testing field. */
 type Flag = 'hittest' | 'hittestchildren'
 
-/** Key names a style property as `style.<name>`, or a panel field. */
 type Key = `style.${string}` | Flag
 
 type Value = string | boolean | null
 
-/** Saved is a property's original and the owners holding the property. */
 interface Saved {
   original: Value
   owners: string[]
@@ -118,7 +115,7 @@ export class NativeChanges {
     id: string,
     placement?: Placement,
   ): NativePanel | null {
-    // Make the panel inside its parent, then move it into place.
+    // Create the panel, then place it.
     const inside = this.find(parent)
     if (!inside) return null
     const panel = this.panorama.CreatePanel(type, inside, id)
@@ -144,7 +141,7 @@ export class NativeChanges {
     text: string,
     classes: string[] = [],
   ): NativePanel | null {
-    // Leave the mode's own labels alone, and a native one already reading text.
+    // Swap in the mode's label.
     const label = this.find(target)
     if (!label || [...this.labels.values()].includes(label)) return null
     let mine = this.labels.get(label)
@@ -166,7 +163,7 @@ export class NativeChanges {
    * panels this owner created.
    */
   release(): void {
-    // Restore what no other owner holds, then delete what this one made.
+    // Undo this owner's changes.
     for (const [panel, keys] of this.held) {
       if (!panel.IsValid()) continue
       const saved = readSaved(panel)
@@ -208,8 +205,7 @@ export class NativeChanges {
     target: NativeTarget,
     values: [Key, Value][],
   ): NativePanel | null {
-    // Join the owners of each property this owner did not hold yet, saving
-    // the original if none did, then write the values.
+    // Claim each property, then write the values.
     const panel = this.find(target)
     if (!panel) return null
     let keys = this.held.get(panel)

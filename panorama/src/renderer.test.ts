@@ -102,8 +102,6 @@ test('layout cleanup runs once, survives a failed handler, stops data callbacks 
   })
   const layout = await import('./layout.js')
 
-  // A layout listens as it loads, so one that only changes native panels
-  // still hears that it unloads.
   expect(listened).toBe(true)
   const calls: unknown[] = []
   layout.data((value) => calls.push(value))
@@ -175,7 +173,6 @@ class FakePanel {
   set visible(value: boolean) {
     this.style.visibility = value ? 'visible' : 'collapse'
   }
-  /** loadCss gives the panel the visibility a newly loaded map's CSS sets. */
   loadCss(css: 'visible' | 'collapse' | null) {
     this.css = css
     if (css !== null && (this.style.visibility ?? null) === null)
@@ -1102,7 +1099,6 @@ test("hides the game's HUD parts while a root lists them", () => {
   // Sweep through the fake $.Schedule.
   const hud = new Hud(game, (_, callback) => $.Schedule(0, callback), $)
 
-  // The game shows the top bar's scores with a style of its own.
   scores.style.visibility = 'visible'
 
   // Hiding the player's health collapses its panels and keeps the rest.
@@ -1462,7 +1458,6 @@ test('reads screens in acknowledged parts', () => {
   title('')
   expect(shown).toEqual([shown[0]!, null])
 
-  // The session's two commands run as the game's console commands.
   const command = (id: number, frame: Frame) => {
     const text = pack(frame)
     title(part(id, 0, text, text.length))
@@ -1471,7 +1466,6 @@ test('reads screens in acknowledged parts', () => {
   command(10, Frame.create({ body: { case: 'disconnect', value: {} } }))
   expect(ran).toEqual(['connect 127.0.0.1:27115', 'disconnect'])
 
-  // Any other command is refused and logged, and nothing runs.
   command(11, Frame.create({ body: { case: 'connect', value: 70000 } }))
   const unknown = String.fromCharCode(0x20, 0x101)
   title(part(12, 0, unknown, unknown.length))
@@ -1483,7 +1477,6 @@ test('reads screens in acknowledged parts', () => {
   expect(shown.length).toBe(2)
 })
 
-/** pack packs a frame as the controller does. */
 function pack(frame: Frame): string {
   let text = ''
   for (const byte of Frame.toBinary(frame))
@@ -1494,14 +1487,12 @@ function pack(frame: Frame): string {
 }
 
 test("native changes restore each panel's original once its last owner releases it", () => {
-  // The game's HUD holds a shop the game shows with a style of its own.
   const hud = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
     $.CreatePanel('Panel', parent, id) as unknown as FakePanel
   const shop = add(hud, 'CitadelHudHeroShop')
   shop.style.visibility = 'visible'
 
-  // Two owners, as two layouts or a layout and the hud, share one original.
   const first = new NativeChanges($, () => hud)
   const second = new NativeChanges($, () => hud)
   expect(first.hide('CitadelHudHeroShop')).toBe(shop)
@@ -1517,13 +1508,11 @@ test("native changes restore each panel's original once its last owner releases 
   expect([shop.hittest, shop.hittestchildren]).toEqual([true, true])
   expect(shop.GetAttributeString(savedAttribute, '')).toBe('')
 
-  // A missing panel changes nothing.
   expect(first.hide(null)).toBeNull()
   expect(first.style(undefined, { opacity: '0' })).toBeNull()
   expect(first.set('NoSuchPanel', { visible: false })).toBeNull()
   expect(first.create('Panel', null, 'Cover')).toBeNull()
 
-  // A created panel goes where it is placed, and release deletes it.
   const slot = add(hud, 'slot')
   const image = add(slot, 'ability_image')
   const mask = add(slot, 'cooldown_mask')
@@ -1555,7 +1544,6 @@ test("relabel shows a mode's text in a label of its own and gives the native lab
   const cost = label('ModCost', '800')
   const owner = new NativeChanges($, () => hud)
 
-  // The native label keeps its text; the mode's sits right after it, styled alike.
   const mine = owner.relabel(name, 'Snow Globe', [
     'ModName',
   ]) as unknown as FakePanel
@@ -1567,13 +1555,11 @@ test("relabel shows a mode's text in a label of its own and gives the native lab
   ])
   expect([name.text, name.visible]).toEqual(['Cold Front', false])
 
-  // A sweep re-applies to the same label, and never relabels its own.
   for (const found of tooltip.FindChildrenWithClassTraverse('ModName'))
     owner.relabel(found, 'Snow Globe 2', ['ModName'])
   expect(tooltip.children).toEqual([name, mine, cost])
   expect(mine.text).toBe('Snow Globe 2')
 
-  // A label that already reads the mode's text is left alone.
   expect(owner.relabel(cost, '800')).toBeNull()
   expect(owner.relabel(null, '800')).toBeNull()
   expect([cost.visible, tooltip.children.length]).toEqual([true, 3])
@@ -1586,7 +1572,6 @@ test("relabel shows a mode's text in a label of its own and gives the native lab
     null,
   ])
 
-  // After a release the owner draws a fresh label.
   const again = owner.relabel(name, 'Sprint', [
     'ModName',
   ]) as unknown as FakePanel
@@ -1657,7 +1642,6 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
     hud.draw(hiddenParts(screen))
   }
 
-  // The screen shows a layout and hides the top bar.
   const arena = Screen.fromJson({
     trees: [
       {

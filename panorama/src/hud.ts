@@ -111,7 +111,6 @@ export class Cursor {
   /** asked is the count of asks for the cursor the last screen held. */
   private asked = 0
 
-  /** heroPresent is true while the local hero is in the game's HUD. */
   private heroPresent = false
 
   constructor(
@@ -132,12 +131,12 @@ export class Cursor {
 
   /** hero tells the cursor whether the local hero is in the game's HUD. */
   hero(present: boolean): void {
-    // Only the hero's arrival changes the game's cursor.
+    // Track the hero's arrival.
     const arrived = present && !this.heroPresent
     this.heroPresent = present
     if (!arrived) return
 
-    // The arrival captured the cursor; send the free again if a screen wants it.
+    // Free the cursor again if a screen wants it.
     this.free = false
     if (this.wanted) this.send(true)
   }
@@ -198,7 +197,6 @@ export function cursorAsks(screen: Screen | null): number {
 
 /** Hud collapses the parts of the game's HUD it is told to hide. */
 export class Hud {
-  /** hidden holds the changes of each part some root lists. */
   private hidden = new Map<HudPart, NativeChanges>()
 
   /** sweeping records that a sweep is scheduled. */

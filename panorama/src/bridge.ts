@@ -117,7 +117,7 @@ export class Bridge {
       return false
     }
 
-    // Draw the complete screen, or run the command.
+    // Dispatch the frame.
     const body = frame.body
     if (body?.case === 'screen') {
       try {
