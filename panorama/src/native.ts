@@ -66,8 +66,7 @@ interface Saved {
 /** savedAttribute names the panel attribute that holds its saved originals. */
 export const savedAttribute = 'modlock_native'
 
-/** labelAttribute marks a label relabel drew. */
-const labelAttribute = 'modlock_label'
+const drawnLabelAttribute = 'modlock_label'
 
 /** NativeChanges is one owner's changes to the game's panels. */
 export class NativeChanges {
@@ -136,9 +135,8 @@ export class NativeChanges {
   /**
    * relabel shows text in place of a native label: it hides the label and
    * draws its own, with the label's id and the given classes, right after it.
-   * A label that already reads text is left alone, and so is a label any owner
-   * drew, which stays in the tree until the frame after its release. Writing
-   * a native label's text would stop the game filling it for good.
+   * A label that already reads text, or that any owner drew, is left alone.
+   * Writing a native label's text would stop the game filling it for good.
    */
   relabel(
     target: NativeTarget,
@@ -147,7 +145,7 @@ export class NativeChanges {
   ): NativePanel | null {
     // Swap in the mode's label.
     const label = this.find(target)
-    if (!label || label.GetAttributeString(labelAttribute, '') !== '')
+    if (!label || label.GetAttributeString(drawnLabelAttribute, '') !== '')
       return null
     let mine = this.labels.get(label)
     if (!mine && label.text === text) return null
@@ -155,7 +153,7 @@ export class NativeChanges {
       mine = this.create('Label', label.GetParent(), label.id, {
         after: label,
       })!
-      mine.SetAttributeString(labelAttribute, this.owner)
+      mine.SetAttributeString(drawnLabelAttribute, this.owner)
       for (const name of classes) mine.AddClass(name)
       this.labels.set(label, mine)
     }
