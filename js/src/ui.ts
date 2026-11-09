@@ -605,10 +605,9 @@ export function hideHud(player: Player, parts: readonly HudPart[]): boolean {
  * so they can click the mod's panels, such as a pick screen; false gives the
  * mouse back to aiming. Each call with true shows the cursor again, even when
  * the player put it away with the game's own keys; a screen that changes
- * without a call leaves their choice be, and a new pawn gets the cursor again.
- * The game does not stop the player's shots, camera or movement while the
- * cursor is up: a screen that must not fire a weapon calls player.blockInput
- * for the buttons it takes.
+ * without a call leaves their choice be. The game does not stop the player's
+ * shots, camera or movement while the cursor is up: a screen that must not
+ * fire a weapon calls player.blockInput for the buttons it takes.
  */
 export function freeCursor(player: Player, free: boolean): boolean {
   const current = view(player)
@@ -616,7 +615,6 @@ export function freeCursor(player: Player, free: boolean): boolean {
     ...current,
     cursor: free,
     asks: free ? current.asks + 1 : current.asks,
-    pawn: player.pawn()?.entity,
   })
   return draw(player)
 }
@@ -747,23 +745,10 @@ export function change(
   }
 }
 
-/**
- * tick advances the clock to the frame at seconds, fades expiring notices and
- * frees the cursor again on a pawn that replaced the one it was freed on: the
- * game keeps the free cursor on the pawn, so a new pawn, such as the hero
- * SelectHero makes, starts with it captured.
- */
+/** tick advances the clock to the frame at seconds and fades expiring notices. */
 export function tick(seconds: number): void {
   now = seconds
   for (const current of views.values()) {
-    if (current.cursor) {
-      const pawn = current.player.pawn()?.entity
-      if (pawn !== undefined && pawn !== current.pawn) {
-        current.pawn = pawn
-        current.asks += 1
-        draw(current.player)
-      }
-    }
     if (current.notices.length === 0) {
       continue
     }
@@ -779,10 +764,8 @@ interface View {
   readonly hud: readonly HudPart[]
   /** cursor is true while the mod frees the player's mouse cursor. */
   readonly cursor: boolean
-  /** asks counts the times the cursor was freed. */
-  asks: number
-  /** pawn is the entity of the pawn the cursor was last freed on. */
-  pawn: number | undefined
+  /** asks counts the mod's calls that freed the cursor. */
+  readonly asks: number
   /** routes maps each route's name to its value as JSON. */
   readonly routes: ReadonlyMap<string, string>
   notices: readonly Notice[]
@@ -823,7 +806,6 @@ function view(player: Player): View {
       hud: [],
       cursor: false,
       asks: 0,
-      pawn: undefined,
       routes: new Map(),
       notices: [],
     }
