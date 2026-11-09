@@ -6,8 +6,7 @@
 
 import { Bridge } from './bridge.js'
 import { AddonLayouts, Drawing, inputCommand, pressCommand } from './draw.js'
-import { Cursor, Hud } from './hud.js'
-import { presenter } from './present.js'
+import { Cursor, Hud, cursorAsks, cursorFreed, hiddenParts } from './hud.js'
 
 /**
  * defaultBridge is the relay page a package without the session's boot script
@@ -76,7 +75,12 @@ new Bridge(
   context.FindChildTraverse('ModlockUiState')!,
   // The session's boot script names the page for its relay and port.
   context.GetAttributeString('modlock_bridge', defaultBridge),
-  presenter(game, layouts, drawing, stock, cursor),
+  (screen) => {
+    layouts.follow(screen)
+    drawing.draw(screen)
+    stock.draw(hiddenParts(screen))
+    cursor.set(cursorFreed(screen), cursorAsks(screen))
+  },
   // The session alone sends commands, the two the bridge accepts.
   (command) => $.DispatchEvent('CitadelConCommand', command),
 )

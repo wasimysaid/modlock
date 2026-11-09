@@ -2,6 +2,12 @@
 // game's own panels. The first owner to change a property saves its original
 // on the panel, so every owner in every script context restores the same
 // value, and the last owner to release a property restores it.
+//
+// In Panorama an inline visibility sets a panel's visible, clearing it
+// applies only the game's own CSS, and setting visible writes the inline
+// visibility. So visible is kept as style.visibility, and a restore turns
+// visible on before it writes the original, so a cleared style leaves the
+// panel to the game's CSS instead of hidden.
 
 /** NativePanel is the part of a game panel native changes use. */
 export interface NativePanel {
@@ -51,8 +57,11 @@ export interface TextRestore {
   scope?: NativePanel
 }
 
+/** Flag names a hit-testing field; visible is style.visibility's to keep. */
+type Flag = 'hittest' | 'hittestchildren'
+
 /** Key names a style property as `style.<name>`, or a panel field. */
-type Key = `style.${string}` | keyof NativeFlags | 'text'
+type Key = `style.${string}` | Flag | 'text'
 
 type Value = string | boolean | null
 
@@ -64,15 +73,6 @@ interface Saved {
 
 /** savedAttribute names the panel attribute that holds its saved originals. */
 export const savedAttribute = 'modlock_native'
-
-/** backstopKeys are the properties a snapshot keeps. */
-const backstopKeys: Key[] = [
-  'style.visibility',
-  'style.opacity',
-  'visible',
-  'hittest',
-  'hittestchildren',
-]
 
 /** NativeChanges is one owner's changes to the game's panels. */
 export class NativeChanges {
@@ -97,13 +97,16 @@ export class NativeChanges {
   }
 
   set(target: NativeTarget, values: NativeFlags): NativePanel | null {
-    return this.write(
-      target,
-      Object.entries(values).filter(
-        (entry): entry is [keyof NativeFlags, boolean] =>
-          entry[1] !== undefined,
-      ),
-    )
+    const entries: [Key, Value][] = []
+    if (values.visible !== undefined)
+      entries.push([
+        'style.visibility',
+        values.visible ? 'visible' : 'collapse',
+      ])
+    for (const key of ['hittest', 'hittestchildren'] satisfies Flag[]) {
+      if (values[key] !== undefined) entries.push([key, values[key]])
+    }
+    return this.write(target, entries)
   }
 
   hide(target: NativeTarget): NativePanel | null {
@@ -164,6 +167,7 @@ export class NativeChanges {
         entry.owners = entry.owners.filter((owner) => owner !== this.owner)
         if (entry.owners.length !== 0) continue
         const restore = key === 'text' ? this.restores.get(panel) : undefined
+        if (key === 'style.visibility') panel.visible = true
         write(
           panel,
           key,
@@ -226,30 +230,6 @@ export class NativeChanges {
   }
 }
 
-/**
- * snapshot keeps the visibility, opacity and hit testing of panels, preferring
- * an original some owner saved and never released, and returns a function
- * that writes them back and forgets every original saved on those panels.
- */
-export function snapshot(panels: NativePanel[]): () => void {
-  const kept = panels.map((panel) => {
-    const saved = readSaved(panel)
-    return {
-      panel,
-      values: backstopKeys.map(
-        (key) => [key, saved[key]?.original ?? read(panel, key)] as const,
-      ),
-    }
-  })
-  return () => {
-    for (const { panel, values } of kept) {
-      if (!panel.IsValid()) continue
-      for (const [key, value] of values) write(panel, key, value)
-      writeSaved(panel, {})
-    }
-  }
-}
-
 /** top returns the root of the interface panel sits in. */
 export function top(panel: NativePanel): NativePanel {
   let root = panel
@@ -259,7 +239,7 @@ export function top(panel: NativePanel): NativePanel {
 
 function read(panel: NativePanel, key: Key): Value {
   if (key.startsWith('style.')) return panel.style[key.slice(6)] ?? null
-  return panel[key as keyof NativeFlags | 'text']
+  return panel[key as Flag | 'text']
 }
 
 function write(panel: NativePanel, key: Key, value: Value): void {
@@ -268,7 +248,7 @@ function write(panel: NativePanel, key: Key, value: Value): void {
   } else if (key === 'text') {
     panel.text = value as string
   } else {
-    panel[key as keyof NativeFlags] = value as boolean
+    panel[key as Flag] = value as boolean
   }
 }
 

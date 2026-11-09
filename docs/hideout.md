@@ -34,8 +34,7 @@ remaining checks.
 | Packaged image dimensions | Panorama content compiler | Stylesheet image tables use dimensions from packaged VTEX headers |
 | Numeric native tier bonuses | Native definition layer | Replace values of existing ability-upgrade rows; preserve native costs and row identity |
 | Layout unload callbacks | Panorama renderer and layout library | `Modlock.onUnload(handler)` runs once before a layout or its ancestor is removed or replaced; use it to cancel work |
-| Native panel changes | Panorama renderer and layout library | `Modlock.native` is the one way a layout changes the game's own panels; every change is released when the layout unloads |
-| HUD backstop | Panorama renderer | A screen's end returns the main HUD panels' visibility, opacity and hit testing to what its start found |
+| Native panel changes | Panorama renderer and layout library | `Modlock.native` is the one way a layout changes the game's own panels; every change is released when the layout unloads, and a released visibility goes back to the game's own CSS |
 | Session commands | Relay and renderer | The relay stream carries `connect` to a loopback port and `disconnect`, which the renderer runs as console commands |
 | Pawn observer service fields | Native entity field layer | Existing field reads and writes resolve `CPlayer_ObserverServices` through a pawn's schema-declared observer services pointer |
 
@@ -96,6 +95,14 @@ for changes released early, such as a pooled tooltip's on hover-out. Make a
 group once and reuse it after each release. When a layout unloads, its
 `onUnload` callbacks run first, then every owner it made is released.
 
+Panorama keeps a panel's `visible` apart from its inline `visibility`.
+Setting the style to `collapse` also turns `visible` off, clearing the style
+applies only the game's own CSS and leaves `visible` as it was, and setting
+`visible` writes the inline style. So `set(panel, { visible })` changes
+`style.visibility`, and releasing `style.visibility` sets `visible = true`
+before it writes the original. A panel whose original was no inline style is
+then shown or hidden by the game's CSS, as a fresh game has it.
+
 `text` restores the saved text, or with `restore`, `$.Localize(token, scope)`.
 Use the latter for labels the engine rewrites, such as pooled tooltips.
 
@@ -113,19 +120,6 @@ cover.SetImage('file://{images}/...')
 
 Classes, dialog variables and children the game made are outside the API, and
 a layout does not change them.
-
-### Backstop
-
-A screen starts when it first holds a tree and ends when it holds none, as when
-the stream closes, the player leaves the server or the server stops. At the
-start the renderer keeps the visibility, opacity, `visible`, `hittest` and
-`hittestchildren` of the main HUD panels (`backstopIds` in
-`panorama/src/hud.ts`: the top bar, shop, quick buy, health, stats, minimap,
-abilities, souls, crosshair and the other top-level HUD containers). At the
-end it removes every layout, which releases their changes, shows the `hideHud`
-parts again, then writes those values back and clears the panels' saved
-originals. A direct write that bypassed `Modlock.native` is undone for these
-panels and properties only.
 
 ## Session commands
 

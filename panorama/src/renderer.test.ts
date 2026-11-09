@@ -14,7 +14,6 @@ import { Cursor, Hud, cursorAsks, cursorFreed, hiddenParts } from './hud.js'
 import { decodeUtf8 } from './packed.js'
 import { layoutUnloading } from './data.js'
 import { NativeChanges, savedAttribute } from './native.js'
-import { presenter } from './present.js'
 import { Frame } from '../stream.pb.js'
 
 test('unloads layouts before removing, replacing or reloading their ancestors', () => {
@@ -1562,13 +1561,12 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
     () => {},
     layouts,
   )
-  const show = presenter(
-    game,
-    layouts,
-    drawing,
-    new Hud(game, (_, callback) => $.Schedule(0, callback), $),
-    new Cursor(() => {}, game),
-  )
+  const hud = new Hud(game, (_, callback) => $.Schedule(0, callback), $)
+  const show = (screen: Screen) => {
+    layouts.follow(screen)
+    drawing.draw(screen)
+    hud.draw(hiddenParts(screen))
+  }
 
   // The screen shows a layout and hides the top bar.
   const arena = Screen.fromJson({

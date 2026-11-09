@@ -12,7 +12,6 @@ import {
   NativeChanges,
   type NativePanel,
   type NativePanorama,
-  snapshot,
   top,
 } from './native.js'
 
@@ -76,65 +75,6 @@ const finders: Partial<Record<HudPart, (hud: HudPanel) => HudPanel[]>> = {
   [HudPart.STATS]: (hud) => ownPanel(hud, 'hudPlayerStats'),
   // The corner mark sits outside the game's HUD, under the interface's root.
   [HudPart.STATUS]: (hud) => ownPanel(top(hud) as HudPanel, 'DefaultStatus'),
-}
-
-/**
- * backstopIds name the game's main HUD panels, which a screen's end returns
- * to how its start found them, whatever wrote to them meanwhile.
- */
-const backstopIds = [
-  'TopBar',
-  'CitadelHudHeroShop',
-  'CitadelHudQuickbuy',
-  'health_and_abilities_container',
-  'hudPlayerStats',
-  'hudActivePlayerStats',
-  'StatsAndModsContainer',
-  'minimap_persp',
-  'AbilitiesContainer',
-  'gold_and_ap_container',
-  'crosshair',
-  'status_bars',
-  'unit_indicators_v2',
-  'ability_resource',
-  'hud_modifier_history',
-  'CitadelHudGameAnnouncements',
-  'CitadelHudDamageReport',
-  'hud_damage_summary',
-  'hud_hero_testing',
-  'damage_meter',
-  'context_action_container',
-  'gameplay_hud_dead',
-  'PregameCountdown',
-  'objectives_health_friendly',
-  'friendly_final_objective_container',
-  'enemy_final_objective_container',
-  'hud_aura_modifiers',
-  'spectate_bar',
-  'hud_replay',
-  'hudBacker',
-  'damage_indicator_radar',
-  'damage_indicator_offscreen_enemy',
-  'LowHealthWarning',
-  'MidHealthWarning',
-  'low_health_screen_effect',
-  'MovementSpeedLabel',
-  'MovementSpeedCurrent',
-  'DataFeed',
-  'spectator_count',
-]
-
-/**
- * snapshotHud keeps the main HUD panels under hud's interface and returns a
- * function that restores them.
- */
-export function snapshotHud(hud: HudPanel): () => void {
-  const root = top(hud)
-  return snapshot(
-    backstopIds
-      .map((id) => root.FindChildTraverse(id))
-      .filter((panel) => panel !== null),
-  )
 }
 
 /** ownPanel finds the one panel with id under the game's HUD. */
