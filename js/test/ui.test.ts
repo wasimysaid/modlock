@@ -13,18 +13,31 @@ import {
   UiRequest,
   Weight,
 } from '../../src/wasm/ui/ui.pb.js'
+import {
+  PawnResponse,
+  PlayerRequest,
+} from '../../src/wasm/players/players.pb.js'
 import { Call, FrameEvent, Reply } from '../../src/wasm/wasm.pb.js'
 import { bind, deliver } from '../src/host.js'
 import { Action, freeCursor, hideHud, jsx, sheet, show } from '../src/index.js'
 import { Player } from '../src/host.gen.js'
-import { change } from '../src/ui.js'
+import { change, tick } from '../src/ui.js'
 
 // The library sends each interface change through the transport, which
-// records it.
+// records it, and reads each player's pawn from pawns.
 const sent: UiRequest[] = []
+const pawns = new Map<number, number>()
 bind((encoded) => {
   const call = Call.fromBinary(encoded)
   if (call.method === 'Ui') sent.push(UiRequest.fromBinary(call.request))
+  if (call.method === 'Pawn') {
+    const entity = pawns.get(PlayerRequest.fromBinary(call.request).player!)
+    return Reply.toBinary({
+      response: PawnResponse.toBinary({
+        pawn: entity === undefined ? undefined : { entity },
+      }),
+    })
+  }
   return Reply.toBinary({})
 })
 
@@ -118,6 +131,31 @@ test('a redraw sends only the nodes that changed, under their first ids', () => 
   show(player, score('Score  Leading'))
   const classed = sent.at(-1)!.change!.set!
   expect(classed.map((node) => node.classes)).toEqual([['Score', 'Leading']])
+})
+
+test('frees the cursor again on the pawn that replaces the one it was freed on', () => {
+  // The game keeps the free cursor on the pawn, and SelectHero replaces the
+  // pawn a joining player holds.
+  const player = new Player(8)
+  pawns.set(8, 300)
+  freeCursor(player, true)
+  expect(sent.at(-1)!.change!.set![0]!.freeCursorAsks).toBe(1)
+  const asked = sent.length
+  tick(1)
+  expect(sent.length).toBe(asked)
+
+  pawns.set(8, 301)
+  tick(2)
+  expect(sent.at(-1)!.change!.set![0]!.freeCursorAsks).toBe(2)
+  tick(3)
+  expect(sent.length).toBe(asked + 1)
+
+  // A cursor the mod gave back to aiming stays captured on a new pawn.
+  freeCursor(player, false)
+  const captured = sent.length
+  pawns.set(8, 302)
+  tick(4)
+  expect(sent.length).toBe(captured)
 })
 
 test("a style names the game's faces, edges, paint and motion on the wire", () => {
