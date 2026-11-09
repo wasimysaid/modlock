@@ -109,8 +109,10 @@ token, nor `SetLocString` (measured in Deadlock). To show its own text, a
 layout calls `relabel`. It hides the native label and creates a label of its
 own right after it, with the native label's id and the classes given, and
 returns that label. Calling it again on each sweep rewrites the same label, and
-a native label that already reads the text is left alone. Release deletes the
-label and shows the native one again:
+a native label that already reads the text is left alone. No owner relabels a
+label `relabel` drew, which matters when a sweep runs in the frame of a
+release, before the game deletes the old label. Release deletes the label and
+shows the native one again:
 
 ```js
 const tip = Modlock.native.group()
