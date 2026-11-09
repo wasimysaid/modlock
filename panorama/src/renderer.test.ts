@@ -138,12 +138,43 @@ class FakePanel {
     return { x: 100, y: 0 }
   }
   checked = false
-  visible = true
   image = ''
   url = ''
   layout = ''
   valid = true
-  style: Record<string, string | null> = {}
+  /** css is the visibility the game's own stylesheet gives the panel. */
+  css: 'visible' | 'collapse' | null = null
+  shown = true
+  // As Panorama does: an inline visibility sets visible, clearing it applies
+  // only the game's own CSS, and setting visible writes the inline style.
+  readonly style = new Proxy<Record<string, string | null>>(
+    {},
+    {
+      set: (style, name: string, value: string | null | undefined) => {
+        if (name === 'visibility') {
+          if (value === '')
+            throw new Error('Failed to parse style value for visibility')
+          if (value === undefined) throw new Error('Invalid value')
+          const applied = value ?? this.css
+          if (applied !== null) this.shown = applied !== 'collapse'
+        }
+        style[name] = value ?? null
+        return true
+      },
+    },
+  )
+  get visible() {
+    return this.shown
+  }
+  set visible(value: boolean) {
+    this.style.visibility = value ? 'visible' : 'collapse'
+  }
+  /** loadCss gives the panel the visibility a newly loaded map's CSS sets. */
+  loadCss(css: 'visible' | 'collapse' | null) {
+    this.css = css
+    if (css !== null && (this.style.visibility ?? null) === null)
+      this.shown = css !== 'collapse'
+  }
   events = new Map<string, () => void>()
   attributes = new Map<string, string>()
   classes: string[] = []
@@ -1409,14 +1440,18 @@ function pack(frame: Frame): string {
   return text
 }
 
-test("native changes restore each panel's exact original once its last owner releases it", () => {
-  // The game's HUD holds a shop the game shows with a style of its own, and
-  // a pooled tooltip's label.
+test("native changes hand each panel back to the game's own CSS once its last owner releases it", () => {
+  // The game's HUD holds a shop the game shows with a style of its own, an
+  // ability slot and a minimap its CSS hides, and a pooled tooltip's label.
   const hud = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
     $.CreatePanel('Panel', parent, id) as unknown as FakePanel
   const shop = add(hud, 'CitadelHudHeroShop')
   shop.style.visibility = 'visible'
+  const slot1 = add(hud, 'slot_signature_1')
+  const slot2 = add(hud, 'slot_signature_2')
+  const minimap = add(hud, 'minimap_persp')
+  minimap.loadCss('collapse')
   const tooltip = add(hud, 'Tooltip')
   const name = add(tooltip, 'ModName')
   name.text = 'Extra Health'
@@ -1430,14 +1465,34 @@ test("native changes restore each panel's exact original once its last owner rel
   second.style(shop, { visibility: 'collapse', opacity: '0' })
   second.set(shop, { hittest: false, hittestchildren: false })
   first.hide(shop)
-  expect(shop.style.visibility).toBe('collapse')
+  expect(shop.visible).toBe(false)
   first.release()
-  expect(shop.style.visibility).toBe('collapse')
+  expect(shop.visible).toBe(false)
   second.release()
-  expect(shop.style.visibility).toBe('visible')
+  expect([shop.style.visibility, shop.visible]).toEqual(['visible', true])
   expect(shop.style.opacity).toBeNull()
   expect([shop.hittest, shop.hittestchildren]).toEqual([true, true])
   expect(shop.GetAttributeString(savedAttribute, '')).toBe('')
+
+  // A collapsed slot shows again, hidden by style or by visible, and the
+  // minimap stays as its CSS has it, with no inline style left on any.
+  first.hide(slot1)
+  first.set(slot2, { visible: false })
+  first.hide(minimap)
+  expect([slot1.visible, slot2.visible, minimap.visible]).toEqual([
+    false,
+    false,
+    false,
+  ])
+  first.release()
+  for (const [panel, visible] of [
+    [slot1, true],
+    [slot2, true],
+    [minimap, false],
+  ] as const) {
+    expect([panel.style.visibility, panel.visible]).toEqual([null, visible])
+    expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
+  }
 
   // A missing panel changes nothing.
   expect(first.hide(null)).toBeNull()
@@ -1473,18 +1528,20 @@ test("native changes restore each panel's exact original once its last owner rel
   expect(slot.children).toEqual([image, mask])
 })
 
-test('a screen end unloads layouts, then restores the HUD whatever wrote to it', () => {
-  // The game's HUD holds the top bar, the shop and the minimap.
+test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => {
+  // The game's HUD holds the top bar, the shop, and on the mode's map a
+  // minimap its CSS shows and testing tools its CSS hides.
   const game = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
     $.CreatePanel('Panel', parent, id) as unknown as FakePanel
   const scores = add(add(game, 'TopBar'), 'TeamScores')
-  scores.style.visibility = 'visible'
   const shop = add(game, 'CitadelHudHeroShop')
-  shop.style.visibility = 'visible'
   const minimap = add(game, 'minimap_persp')
+  minimap.loadCss('visible')
+  const testing = add(game, 'hud_hero_testing')
+  testing.loadCss('collapse')
 
-  // A mode's layout changes the minimap through native changes, which its
+  // A mode's layout hides the shop through native changes, which its
   // library releases once the drawing marks it unloading.
   const events: string[] = []
   const mode = new NativeChanges($, () => game)
@@ -1496,7 +1553,7 @@ test('a screen end unloads layouts, then restores the HUD whatever wrote to it',
       DispatchEvent: () => {
         const layout = root.descendants().find((panel) => panel.layout !== '')
         if (layout?.GetAttributeString(layoutUnloading, '') === '1') {
-          events.push(`unloading, minimap ${minimap.style.visibility}`)
+          events.push(`unloading, shop shown ${shop.visible}`)
           mode.release()
         }
       },
@@ -1527,21 +1584,22 @@ test('a screen end unloads layouts, then restores the HUD whatever wrote to it',
     ],
   })
   show(arena)
-  mode.hide(minimap)
-  shop.style.visibility = 'collapse'
-  expect(scores.style.visibility).toBe('collapse')
+  mode.hide(shop)
+  expect([scores.visible, shop.visible]).toEqual([false, false])
 
-  // The screen ends: the layout unloads first, then every panel comes back.
+  // The screen ends: the layout unloads first, then the top bar and the shop
+  // show again, and nothing pins the mode's map's HUD.
   show(Screen.create({}))
-  expect(events).toEqual(['unloading, minimap collapse'])
-  expect(scores.style.visibility).toBe('visible')
-  expect(minimap.style.visibility).toBeNull()
-  expect(shop.style.visibility).toBe('visible')
-  for (const panel of game.descendants())
+  expect(events).toEqual(['unloading, shop shown false'])
+  expect([scores.visible, shop.visible]).toEqual([true, true])
+  for (const panel of game.descendants()) {
+    expect(panel.style.visibility ?? null).toBeNull()
     expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
+  }
 
-  // A closed stream after the end changes nothing more.
-  shop.style.visibility = 'collapse'
-  show(null)
-  expect(shop.style.visibility).toBe('collapse')
+  // Back in the sandbox the game's CSS hides the minimap and shows the
+  // testing tools.
+  minimap.loadCss('collapse')
+  testing.loadCss('visible')
+  expect([minimap.visible, testing.visible]).toEqual([false, true])
 })
