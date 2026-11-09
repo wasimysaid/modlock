@@ -13,6 +13,7 @@
 #include "modlock/gameinterop/native_memory.h"
 #include "wasm/game.h"
 #include "wasm/game_internal.h"
+#include "wasm/pawn_services.h"
 
 namespace modlock::wasm {
 
@@ -35,22 +36,6 @@ bool IsRulesClass(const std::string& class_name) {
 bool IsModelClass(const std::string& class_name) {
   return class_name == "CGameSceneNode" || class_name == "CSkeletonInstance" ||
          class_name == "CModelState" || class_name == "CBaseAnimGraphController";
-}
-
-// MovementPawn returns the pawn class whose movement services class_name is,
-// or an empty string when class_name is not a movement services class. The
-// pawn's m_pMovementServices points to the services, which no entity holds.
-std::string_view MovementPawn(const std::string& class_name) {
-  if (class_name == "CPlayer_MovementServices") {
-    return "CBasePlayerPawn";
-  }
-  if (class_name == "CCitadelPlayer_MovementServices") {
-    return "CCitadelPlayerPawn";
-  }
-  if (class_name == "CCitadelObserver_MovementServices") {
-    return "CCitadelObserverPawn";
-  }
-  return {};
 }
 
 // Size returns the bytes a field type occupies in the entity.
@@ -355,8 +340,16 @@ std::expected<unsigned char*, std::string> Game::FieldAddress(void* entity,
     }
     return *part + found->offset;
   }
-  if (const auto pawn = MovementPawn(class_name); !pawn.empty()) {
-    return MovementServices(entity, *actual, std::string(pawn), found->offset);
+  if (const auto service = FindPawnService(class_name)) {
+    return service->FieldAddress(
+        entity, found->offset,
+        [this, &actual](std::string_view pawn) {
+          return services_.Derives(*actual, std::string(pawn));
+        },
+        [this](std::string_view pointer) {
+          return services_.Field("CBasePlayerPawn", std::string(pointer));
+        },
+        gameinterop::ReadNative);
   }
   if (!services_.Derives(*actual, class_name)) {
     return std::unexpected("the entity is a " +
@@ -364,26 +357,6 @@ std::expected<unsigned char*, std::string> Game::FieldAddress(void* entity,
                            class_name);
   }
   return static_cast<unsigned char*>(entity) + found->offset;
-}
-
-std::expected<unsigned char*, std::string> Game::MovementServices(void* entity, const void* actual,
-                                                                  const std::string& pawn_class,
-                                                                  size_t offset) {
-  if (!services_.Derives(actual, pawn_class)) {
-    return std::unexpected("the entity is a " +
-                           std::string(gameinterop::SchemaClassNameOf(actual)) + ", not a " +
-                           pawn_class);
-  }
-  auto field = services_.Field("CBasePlayerPawn", "m_pMovementServices");
-  if (!field) {
-    return std::unexpected(field.error());
-  }
-  unsigned char* services = nullptr;
-  std::memcpy(&services, static_cast<unsigned char*>(entity) + field->offset, sizeof(services));
-  if (services == nullptr) {
-    return std::unexpected("the pawn has no movement services");
-  }
-  return services + offset;
 }
 
 std::expected<unsigned char*, std::string> Game::ModelPart(void* entity, const void* actual,

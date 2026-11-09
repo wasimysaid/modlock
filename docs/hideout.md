@@ -34,6 +34,7 @@ remaining checks.
 | Packaged image dimensions | Panorama content compiler | Stylesheet image tables use dimensions from packaged VTEX headers |
 | Numeric native tier bonuses | Native definition layer | Replace values of existing ability-upgrade rows; preserve native costs and row identity |
 | Layout unload callbacks | Panorama renderer and layout library | `Modlock.onUnload(handler)` runs once before a layout or its ancestor is removed or replaced; use it to restore native panels and cancel work |
+| Pawn observer service fields | Native entity field layer | Existing field reads and writes resolve `CPlayer_ObserverServices` through a pawn's schema-declared observer services pointer |
 
 A scripted press bypasses the combined input block mask, including blocks from
 other loaded mods. It does not remove those blocks or change the physical input
@@ -49,6 +50,13 @@ They run while the layout's panel is still valid. A failed callback is logged
 and does not prevent the remaining callbacks. They do not run when the entire
 game process or its Panorama context is destroyed. A layout should keep any
 temporary changes within that context and restore them in its callback.
+
+Observer service fields use the existing `readField` and `writeField` API. The
+host verifies `CBasePlayerPawn` ancestry before reading `m_pObserverServices`;
+field storage/type checks and write replication follow the ordinary field path.
+This extension does not select spectator targets or repair client camera state.
+Consumers can require the packaging capability `observer-service-fields-v1` when
+adopting this runtime revision; capability metadata belongs to their packaging.
 
 ## Native tier definitions
 

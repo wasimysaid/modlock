@@ -1065,6 +1065,18 @@ const health = readField(pawn.entity, 'CBaseEntity', 'm_iHealth', 'int32')
 writeField(pawn.entity, 'CBaseEntity', 'm_iHealth', 'int32', 500)
 ```
 
+Movement and observer service fields resolve through their owning pawn. For
+example, read the native spectator target from the active observer pawn:
+
+```ts
+const target = readField(observerPawn, 'CPlayer_ObserverServices', 'm_hObserverTarget', 'handle')
+```
+
+The host checks pawn ancestry and follows `CBasePlayerPawn.m_pObserverServices`
+through the current schema. A missing or unreadable service pointer is refused.
+This reads the native target without changing it; deciding which living players
+may be watched remains the mode's responsibility.
+
 An animated prop's `CBaseAnimGraphController` fields resolve through its body
 component. A mod can stop native playback and hold a non-animgraph sequence at
 an authored pose without restarting it:
