@@ -1579,6 +1579,37 @@ test("relabel shows a mode's text in a label of its own and gives the native lab
   expect(tooltip.children).toEqual([name, again, cost])
 })
 
+test('relabel never takes a label of its own for a native one, even while it waits to be deleted', () => {
+  const hud = new FakePanel('CitadelHud', 'Hud')
+  const tooltip = $.CreatePanel('Panel', hud, 'Tooltip') as unknown as FakePanel
+  const cost = $.CreatePanel(
+    'Label',
+    tooltip,
+    'ModCost',
+  ) as unknown as FakePanel
+  cost.AddClass('ModCost')
+  cost.text = '800'
+  const tip = new NativeChanges($, () => hud)
+  const hover = (text: string) => {
+    for (const found of tooltip.FindChildrenWithClassTraverse('ModCost'))
+      tip.relabel(found, text, ['ModCost'])
+  }
+  const shown = () =>
+    tooltip.children.filter((panel) => panel.visible).map((panel) => panel.text)
+
+  hover('600')
+  const drawn = tooltip.children[1]!
+  // As in Panorama, a deleted panel stays in the tree until the frame ends.
+  drawn.DeleteAsync = () => {}
+  tip.release()
+  hover('300')
+  hover('300')
+  FakePanel.prototype.DeleteAsync.call(drawn, 0)
+  expect(shown()).toEqual(['300'])
+  const layout = new NativeChanges($, () => hud)
+  expect(layout.relabel(tooltip.children[1], '700')).toBeNull()
+})
+
 test("a released visibility leaves each panel to the game's own CSS", () => {
   const hud = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string) =>
