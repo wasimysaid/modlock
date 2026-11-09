@@ -13,6 +13,8 @@ import {
 import { Cursor, Hud, cursorAsks, cursorFreed, hiddenParts } from './hud.js'
 import { decodeUtf8 } from './packed.js'
 import { layoutUnloading } from './data.js'
+import { NativeChanges, savedAttribute } from './native.js'
+import { presenter } from './present.js'
 
 test('unloads layouts before removing, replacing or reloading their ancestors', () => {
   const root = new FakePanel('Panel', 'ModlockUi')
@@ -69,8 +71,15 @@ test('unloads layouts before removing, replacing or reloading their ancestors', 
   expect(observed.get(fourth)).toBe(1)
 })
 
-test('layout cleanup runs once, survives a failed handler and stops data callbacks', async () => {
-  const panel = new FakePanel('Panel', 'layout')
+test('layout cleanup runs once, survives a failed handler, stops data callbacks and releases native changes', async () => {
+  const hud = new FakePanel('CitadelHud', 'Hud')
+  const shop = $.CreatePanel(
+    'Panel',
+    hud,
+    'CitadelHudHeroShop',
+  ) as unknown as FakePanel
+  shop.style.visibility = 'visible'
+  const panel = $.CreatePanel('Panel', hud, 'layout') as unknown as FakePanel
   let wake = () => {}
   Object.assign($, {
     GetContextPanel: () => panel,
@@ -90,12 +99,18 @@ test('layout cleanup runs once, survives a failed handler and stops data callbac
     throw new Error('test cleanup failure')
   })
   layout.onUnload(() => calls.push('second'))
+  expect(layout.native.hide('CitadelHudHeroShop')).toBe(shop)
+  layout.native.group().style(shop, { opacity: '0' })
+  layout.onUnload(() => calls.push(shop.style.visibility))
   panel.SetAttributeString(layoutUnloading, '1')
   wake()
   wake()
   panel.SetAttributeString('modlock_data', '42')
   wake()
-  expect(calls).toEqual([undefined, 'first', 'second'])
+  expect(calls).toEqual([undefined, 'first', 'second', 'collapse'])
+  expect(shop.style.visibility).toBe('visible')
+  expect(shop.style.opacity).toBeNull()
+  expect(shop.GetAttributeString(savedAttribute, '')).toBe('')
   expect(messages).toContain(
     '[Modlock] layout cleanup failed: Error: test cleanup failure',
   )
@@ -106,6 +121,7 @@ class FakePanel {
   children: FakePanel[] = []
   parent: FakePanel | null = null
   hittest = true
+  hittestchildren = true
   enabled = true
   text = ''
   value = 0
@@ -993,7 +1009,10 @@ test("hides the game's HUD parts while a root lists them", () => {
   const stats = add(game, 'hudPlayerStats')
 
   // Sweep through the fake $.Schedule.
-  const hud = new Hud(game, (_, callback) => $.Schedule(0, callback))
+  const hud = new Hud(game, (_, callback) => $.Schedule(0, callback), $)
+
+  // The game shows the top bar's scores with a style of its own.
+  scores.style.visibility = 'visible'
 
   // Hiding the player's health collapses its panels and keeps the rest.
   hud.draw(hiddenParts(screen({ id: '', hideHud: ['HUD_PART_OWN_HEALTH'] })))
@@ -1009,7 +1028,7 @@ test("hides the game's HUD parts while a root lists them", () => {
     ),
   )
   expect(boon.style.visibility).toBe('collapse')
-  expect(scores.style.visibility).toBeUndefined()
+  expect(scores.style.visibility).toBe('visible')
   const later = add(announcements, '', 'LevelUpBlock', 'PowerIncreaseBlock')
   expect(scheduled.size).toBe(1)
   runScheduled()
@@ -1043,7 +1062,7 @@ test("hides the game's HUD parts while a root lists them", () => {
   expect(clip.style.visibility).toBe('collapse')
   expect(lowAmmo.style.visibility).toBe('collapse')
   expect(crosshair.style.visibility).toBeUndefined()
-  expect(scores.style.visibility).toBeNull()
+  expect(scores.style.visibility).toBe('visible')
   expect(chat.style.visibility).toBeUndefined()
 
   // The souls, minimap, abilities and stats collapse whole.
@@ -1067,12 +1086,14 @@ test("hides the game's HUD parts while a root lists them", () => {
   // Once no root lists them, the parts show again and the sweeps stop.
   hud.draw(hiddenParts(screen({ id: '', hideHud: ['HUD_PART_LEVEL_UP'] })))
   expect(bars.style.visibility).toBeNull()
-  expect(scores.style.visibility).toBeNull()
+  expect(scores.style.visibility).toBe('visible')
   expect(later.style.visibility).toBe('collapse')
   hud.draw([])
   expect(later.style.visibility).toBeNull()
   runScheduled()
   expect(scheduled.size).toBe(0)
+  for (const panel of game.descendants())
+    expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
 })
 
 test('loads layouts and style sheets a host allows and hands them data', () => {
@@ -1337,4 +1358,141 @@ test('reads screens in acknowledged parts', () => {
   expect(shown.length).toBe(1)
   title('')
   expect(shown).toEqual([shown[0]!, null])
+})
+
+test("native changes restore each panel's exact original once its last owner releases it", () => {
+  // The game's HUD holds a shop the game shows with a style of its own, and
+  // a pooled tooltip's label.
+  const hud = new FakePanel('CitadelHud', 'Hud')
+  const add = (parent: FakePanel, id: string) =>
+    $.CreatePanel('Panel', parent, id) as unknown as FakePanel
+  const shop = add(hud, 'CitadelHudHeroShop')
+  shop.style.visibility = 'visible'
+  const tooltip = add(hud, 'Tooltip')
+  const name = add(tooltip, 'ModName')
+  name.text = 'Extra Health'
+  const cost = add(tooltip, 'ModCost')
+  cost.text = '500'
+
+  // Two owners, as two layouts or a layout and the hud, share one original.
+  const first = new NativeChanges($, () => hud)
+  const second = new NativeChanges($, () => hud)
+  expect(first.hide('CitadelHudHeroShop')).toBe(shop)
+  second.style(shop, { visibility: 'collapse', opacity: '0' })
+  second.set(shop, { hittest: false, hittestchildren: false })
+  first.hide(shop)
+  expect(shop.style.visibility).toBe('collapse')
+  first.release()
+  expect(shop.style.visibility).toBe('collapse')
+  second.release()
+  expect(shop.style.visibility).toBe('visible')
+  expect(shop.style.opacity).toBeNull()
+  expect([shop.hittest, shop.hittestchildren]).toEqual([true, true])
+  expect(shop.GetAttributeString(savedAttribute, '')).toBe('')
+
+  // A missing panel changes nothing.
+  expect(first.hide(null)).toBeNull()
+  expect(first.style(undefined, { opacity: '0' })).toBeNull()
+  expect(first.set('NoSuchPanel', { visible: false })).toBeNull()
+  expect(first.create('Panel', null, 'Cover')).toBeNull()
+
+  // Text comes back as the game localizes it, or as it was.
+  const tip = new NativeChanges($, () => hud)
+  tip.text(name, 'Snow Globe', { token: '{s:mod_name}', scope: tooltip })
+  tip.text(cost, '0')
+  expect([name.text, cost.text]).toEqual(['Snow Globe', '0'])
+  tip.release()
+  expect(name.text).toBe('{s:mod_name} {}')
+  expect(cost.text).toBe('500')
+
+  // A created panel goes where it is placed, and release deletes it.
+  const slot = add(hud, 'slot')
+  const image = add(slot, 'ability_image')
+  const mask = add(slot, 'cooldown_mask')
+  const cover = first.create('Image', 'slot', 'Cover', {
+    before: 'cooldown_mask',
+  })!
+  const hover = first.create('Panel', slot, 'Hover', { after: image })!
+  expect(slot.children.map((panel) => panel.id)).toEqual([
+    'ability_image',
+    'Hover',
+    'Cover',
+    'cooldown_mask',
+  ])
+  first.release()
+  expect([cover.IsValid(), hover.IsValid()]).toEqual([false, false])
+  expect(slot.children).toEqual([image, mask])
+})
+
+test('a screen end unloads layouts, then restores the HUD whatever wrote to it', () => {
+  // The game's HUD holds the top bar, the shop and the minimap.
+  const game = new FakePanel('CitadelHud', 'Hud')
+  const add = (parent: FakePanel, id: string) =>
+    $.CreatePanel('Panel', parent, id) as unknown as FakePanel
+  const scores = add(add(game, 'TopBar'), 'TeamScores')
+  scores.style.visibility = 'visible'
+  const shop = add(game, 'CitadelHudHeroShop')
+  shop.style.visibility = 'visible'
+  const minimap = add(game, 'minimap_persp')
+
+  // A mode's layout changes the minimap through native changes, which its
+  // library releases once the drawing marks it unloading.
+  const events: string[] = []
+  const mode = new NativeChanges($, () => game)
+  const root = add(game, 'ModlockUi')
+  const layouts = new AddonLayouts()
+  const drawing = new Drawing(
+    {
+      ...$,
+      DispatchEvent: () => {
+        const layout = root.descendants().find((panel) => panel.layout !== '')
+        if (layout?.GetAttributeString(layoutUnloading, '') === '1') {
+          events.push(`unloading, minimap ${minimap.style.visibility}`)
+          mode.release()
+        }
+      },
+    },
+    root,
+    () => {},
+    layouts,
+  )
+  const show = presenter(
+    game,
+    layouts,
+    drawing,
+    new Hud(game, (_, callback) => $.Schedule(0, callback), $),
+    new Cursor(() => {}, game),
+  )
+
+  // The screen shows a layout and hides the top bar.
+  const arena = Screen.fromJson({
+    trees: [
+      {
+        mod: 'arena',
+        addon: 'arena',
+        nodes: [
+          { id: '', children: ['hud'], hideHud: ['HUD_PART_TOP_BAR'] },
+          { id: 'hud', kind: 'KIND_LAYOUT', layout: 'hud.xml' },
+        ],
+      },
+    ],
+  })
+  show(arena)
+  mode.hide(minimap)
+  shop.style.visibility = 'collapse'
+  expect(scores.style.visibility).toBe('collapse')
+
+  // The screen ends: the layout unloads first, then every panel comes back.
+  show(Screen.create({}))
+  expect(events).toEqual(['unloading, minimap collapse'])
+  expect(scores.style.visibility).toBe('visible')
+  expect(minimap.style.visibility).toBeNull()
+  expect(shop.style.visibility).toBe('visible')
+  for (const panel of game.descendants())
+    expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
+
+  // A closed stream after the end changes nothing more.
+  shop.style.visibility = 'collapse'
+  show(null)
+  expect(shop.style.visibility).toBe('collapse')
 })

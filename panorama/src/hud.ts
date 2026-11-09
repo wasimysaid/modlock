@@ -3,13 +3,21 @@
 // game builds some of those panels later, such as a notice for each level up,
 // and rebuilds the HUD on its own, and Panorama has no event for a new panel,
 // so while any part is hidden the hud looks for its panels again every
-// sweepSeconds.
+// sweepSeconds. It changes them through native changes, one owner per part,
+// so it restores the value each panel had, which a layout changing the same
+// panel shares.
 
 import { HudPart, type Screen } from '../../src/wasm/ui/ui.pb.js'
+import {
+  NativeChanges,
+  type NativePanel,
+  type NativePanorama,
+  snapshot,
+  top,
+} from './native.js'
 
 /** HudPanel is the part of a game panel the hud uses. */
-export interface HudPanel {
-  readonly style: Record<string, string | null>
+export interface HudPanel extends NativePanel {
   FindChildTraverse(id: string): HudPanel | null
   FindChildrenWithClassTraverse(name: string): HudPanel[]
   GetChildCount(): number
@@ -67,14 +75,66 @@ const finders: Partial<Record<HudPart, (hud: HudPanel) => HudPanel[]>> = {
   [HudPart.ABILITIES]: (hud) => ownPanel(hud, 'AbilitiesContainer'),
   [HudPart.STATS]: (hud) => ownPanel(hud, 'hudPlayerStats'),
   // The corner mark sits outside the game's HUD, under the interface's root.
-  [HudPart.STATUS]: (hud) => ownPanel(top(hud), 'DefaultStatus'),
+  [HudPart.STATUS]: (hud) => ownPanel(top(hud) as HudPanel, 'DefaultStatus'),
 }
 
-/** top returns the root of the interface panel sits in. */
-function top(panel: HudPanel): HudPanel {
-  let root = panel
-  for (let up = root.GetParent(); up; up = up.GetParent()) root = up
-  return root
+/**
+ * backstopIds name the game's main HUD panels, which a screen's end returns
+ * to how its start found them, whatever wrote to them meanwhile.
+ */
+const backstopIds = [
+  'TopBar',
+  'CitadelHudHeroShop',
+  'CitadelHudQuickbuy',
+  'health_and_abilities_container',
+  'hudPlayerStats',
+  'hudActivePlayerStats',
+  'StatsAndModsContainer',
+  'minimap_persp',
+  'AbilitiesContainer',
+  'gold_and_ap_container',
+  'crosshair',
+  'status_bars',
+  'unit_indicators_v2',
+  'ability_resource',
+  'hud_modifier_history',
+  'CitadelHudGameAnnouncements',
+  'CitadelHudDamageReport',
+  'hud_damage_summary',
+  'hud_hero_testing',
+  'damage_meter',
+  'context_action_container',
+  'gameplay_hud_dead',
+  'PregameCountdown',
+  'objectives_health_friendly',
+  'friendly_final_objective_container',
+  'enemy_final_objective_container',
+  'hud_aura_modifiers',
+  'spectate_bar',
+  'hud_replay',
+  'hudBacker',
+  'damage_indicator_radar',
+  'damage_indicator_offscreen_enemy',
+  'LowHealthWarning',
+  'MidHealthWarning',
+  'low_health_screen_effect',
+  'MovementSpeedLabel',
+  'MovementSpeedCurrent',
+  'DataFeed',
+  'spectator_count',
+]
+
+/**
+ * snapshotHud keeps the main HUD panels under hud's interface and returns a
+ * function that restores them.
+ */
+export function snapshotHud(hud: HudPanel): () => void {
+  const root = top(hud)
+  return snapshot(
+    backstopIds
+      .map((id) => root.FindChildTraverse(id))
+      .filter((panel) => panel !== null),
+  )
 }
 
 /** ownPanel finds the one panel with id under the game's HUD. */
@@ -159,8 +219,8 @@ export function cursorAsks(screen: Screen | null): number {
 
 /** Hud collapses the parts of the game's HUD it is told to hide. */
 export class Hud {
-  /** hidden holds the parts some root lists. */
-  private hidden = new Set<HudPart>()
+  /** hidden holds the changes of each part some root lists. */
+  private hidden = new Map<HudPart, NativeChanges>()
 
   /** sweeping records that a sweep is scheduled. */
   private sweeping = false
@@ -168,25 +228,26 @@ export class Hud {
   constructor(
     private readonly hud: HudPanel,
     private readonly schedule: Schedule,
+    private readonly panorama: NativePanorama,
   ) {}
 
   /** draw hides parts and shows every other part it hid again. */
   draw(parts: Iterable<HudPart>): void {
     // Keep the parts the hud knows how to find.
-    const hidden = new Set<HudPart>()
+    const hidden = new Map<HudPart, NativeChanges>()
     for (const part of parts) {
       if (finders[part]) {
-        hidden.add(part)
+        hidden.set(
+          part,
+          this.hidden.get(part) ??
+            new NativeChanges(this.panorama, () => this.hud),
+        )
       }
     }
 
     // Show the parts no longer listed, then hide the rest.
-    for (const part of this.hidden) {
-      if (!hidden.has(part)) {
-        for (const panel of finders[part]!(this.hud)) {
-          panel.style.visibility = null
-        }
-      }
+    for (const [part, changes] of this.hidden) {
+      if (!hidden.has(part)) changes.release()
     }
     this.hidden = hidden
     this.sweep()
@@ -194,11 +255,9 @@ export class Hud {
 
   /** sweep collapses each hidden part's panels and schedules the next sweep. */
   private sweep(): void {
-    for (const part of this.hidden) {
+    for (const [part, changes] of this.hidden) {
       for (const panel of finders[part]!(this.hud)) {
-        if (panel.style.visibility !== 'collapse') {
-          panel.style.visibility = 'collapse'
-        }
+        if (panel.style.visibility !== 'collapse') changes.hide(panel)
       }
     }
     if (this.hidden.size !== 0 && !this.sweeping) {

@@ -15,6 +15,14 @@
 // change, with undefined while the mod sends none. The library reads the
 // attributes the renderer sets on the layout's panel and rereads them on the
 // renderer's change event, so no layout script names either.
+//
+// A layout changes the game's own panels only through Modlock.native, which
+// hands every change back when the layout unloads:
+//
+//   Modlock.native.hide('CitadelHudHeroShop')
+//   const tip = Modlock.native.group()
+//   tip.text(name, 'Snow Globe', { token: '{s:ability_name}', scope: tooltip })
+//   tip.release()
 
 import {
   isRouteName,
@@ -23,6 +31,7 @@ import {
   layoutUnloading,
   routeAttribute,
 } from './data.js'
+import { NativeChanges, type NativePanorama } from './native.js'
 
 /** Handler receives a value the mod sent, or undefined for none. */
 export type Handler = (value: unknown) => void
@@ -42,6 +51,24 @@ const watches: Watch[] = []
 const cleanup: (() => void)[] = []
 let listening = false
 let unloaded = false
+
+const panorama: NativePanorama = {
+  CreatePanel: (type, parent, id) => $.CreatePanel(type, parent as Panel, id),
+  Localize: (token, scope) => $.Localize(token, scope),
+}
+const owners = [new NativeChanges(panorama, () => panel)]
+
+/**
+ * native changes the game's own panels for this layout; group makes another
+ * owner whose changes it may release early. Unloading releases them all.
+ */
+export const native = Object.assign(owners[0]!, {
+  group(): NativeChanges {
+    const owner = new NativeChanges(panorama, () => panel)
+    owners.push(owner)
+    return owner
+  },
+})
 
 /** onUnload restores effects outside this layout before its panel leaves. */
 export function onUnload(handler: () => void): void {
@@ -104,6 +131,7 @@ function reread(): void {
         $.Msg(`[Modlock] layout cleanup failed: ${String(error)}`)
       }
     }
+    for (const owner of owners) owner.release()
     return
   }
   for (const each of watches) {

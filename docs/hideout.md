@@ -33,7 +33,9 @@ remaining checks.
 | Scripted press bypass and cancellation | Native input layer | A queued press bypasses blocking for one input; cancellation removes undelivered queued buttons |
 | Packaged image dimensions | Panorama content compiler | Stylesheet image tables use dimensions from packaged VTEX headers |
 | Numeric native tier bonuses | Native definition layer | Replace values of existing ability-upgrade rows; preserve native costs and row identity |
-| Layout unload callbacks | Panorama renderer and layout library | `Modlock.onUnload(handler)` runs once before a layout or its ancestor is removed or replaced; use it to restore native panels and cancel work |
+| Layout unload callbacks | Panorama renderer and layout library | `Modlock.onUnload(handler)` runs once before a layout or its ancestor is removed or replaced; use it to cancel work |
+| Native panel changes | Panorama renderer and layout library | `Modlock.native` is the one way a layout changes the game's own panels; every change is released when the layout unloads |
+| HUD backstop | Panorama renderer | A screen's end returns the main HUD panels' visibility, opacity and hit testing to what its start found |
 | Pawn observer service fields | Native entity field layer | Existing field reads and writes resolve `CPlayer_ObserverServices` through a pawn's schema-declared observer services pointer |
 
 A scripted press bypasses the combined input block mask, including blocks from
@@ -48,8 +50,74 @@ replace the asset SDK or change image pixels.
 Layout unload callbacks cover UI removal, layout replacement and mod reload.
 They run while the layout's panel is still valid. A failed callback is logged
 and does not prevent the remaining callbacks. They do not run when the entire
-game process or its Panorama context is destroyed. A layout should keep any
-temporary changes within that context and restore them in its callback.
+game process or its Panorama context is destroyed.
+
+## Changing the game's HUD
+
+A layout changes the game's own panels only through `Modlock.native`. It never
+writes a native panel's style, fields or text itself:
+
+```ts
+type NativeTarget = Panel | string | null | undefined // an id is found from the interface's root
+
+interface NativeChanges {
+  style(target: NativeTarget, values: { [property: string]: string | null }): Panel | null
+  set(target: NativeTarget, values: { visible?: boolean; hittest?: boolean; hittestchildren?: boolean }): Panel | null
+  hide(target: NativeTarget): Panel | null
+  text(target: NativeTarget, value: string, restore?: { token: string; scope?: Panel }): Panel | null
+  create(type: string, parent: NativeTarget, id: string, placement?: { before: NativeTarget } | { after: NativeTarget }): Panel | null
+  release(): void
+}
+
+Modlock.native: NativeChanges & { group(): NativeChanges }
+```
+
+Each call returns the panel it changed or created. A missing target, null or
+an id that finds nothing changes nothing and returns null, so a layout may pass
+`FindChildTraverse` results straight in.
+
+The first owner to change a property saves the panel's current value on the
+panel itself. Every owner restores that one original: the renderer's `hideHud`,
+two instances of a layout during a reload, and the groups of any layout.
+Changing a property again keeps the first original, so a layout may re-apply
+its changes on every sweep. A panel the game rebuilds is a new panel with its
+own original. `release()` hands back an owner's changes. A property returns to
+its original once no owner holds it, and the panels the owner created are
+deleted. `Modlock.native` is the layout's own owner. `group()` makes another,
+for changes released early, such as a pooled tooltip's on hover-out. Make a
+group once and reuse it after each release. When a layout unloads, its
+`onUnload` callbacks run first, then every owner it made is released.
+
+`text` restores the saved text, or with `restore`, `$.Localize(token, scope)`.
+Use the latter for labels the engine rewrites, such as pooled tooltips.
+
+`create` makes a panel inside a native panel, which the owner deletes on
+release. `placement` puts it just before or after one of the parent's
+children; only the created panel moves. `SetImage` and `SetPanelEvent` have
+no getter, so a layout never calls them, `MoveChildBefore` or `MoveChildAfter`
+on a native panel. It creates a panel and gives that panel the image or the
+events:
+
+```js
+const cover = Modlock.native.create('Image', slot, 'Cover', { before: 'cooldown_mask' })
+cover.SetImage('file://{images}/...')
+```
+
+Classes, dialog variables and children the game made are outside the API, and
+a layout does not change them.
+
+### Backstop
+
+A screen starts when it first holds a tree and ends when it holds none, as when
+the stream closes, the player leaves the server or the server stops. At the
+start the renderer keeps the visibility, opacity, `visible`, `hittest` and
+`hittestchildren` of the main HUD panels (`backstopIds` in
+`panorama/src/hud.ts`: the top bar, shop, quick buy, health, stats, minimap,
+abilities, souls, crosshair and the other top-level HUD containers). At the
+end it removes every layout, which releases their changes, shows the `hideHud`
+parts again, then writes those values back and clears the panels' saved
+originals. A direct write that bypassed `Modlock.native` is undone for these
+panels and properties only.
 
 Observer service fields use the existing `readField` and `writeField` API. The
 host verifies `CBasePlayerPawn` ancestry before reading `m_pObserverServices`;
