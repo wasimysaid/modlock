@@ -38,10 +38,11 @@ aptre --rpc none --language cpp \
 
 # The publishing messages and the command line's events serve the command line
 # and the programs that read its --json output; the spot document serves the
-# mod libraries; the Studio messages serve its server and page.
+# mod libraries; the Studio messages serve its server and page; the renderer's
+# stream serves the relay and the renderer.
 aptre --rpc none --language go --language ts \
   --targets './publish/*.proto' --targets './cli/*.proto' --targets './mod/spot/*.proto' \
-  --targets './studio/*.proto'
+  --targets './studio/*.proto' --targets './panorama/*.proto'
 
 # The daemon's service serves the modlock processes on one PC.
 aptre --rpc starpc --language go --targets './daemon/*.proto'

@@ -1,9 +1,12 @@
 // The bridge reads the local player's screen from the controller on loopback.
 // Deadlock loads only https pages into HTML panels, so the panel loads a relay
 // page from an https origin that reaches the controller and streams each
-// screen into its title in acknowledged parts.
+// screen into its title in acknowledged parts. The same stream carries the
+// two console commands the session may send the player's game: connect to a
+// server on loopback, and disconnect.
 
-import { Screen } from '../../src/wasm/ui/ui.pb.js'
+import type { Screen } from '../../src/wasm/ui/ui.pb.js'
+import { Frame } from '../stream.pb.js'
 import { unpackBytes } from './packed.js'
 
 /**
@@ -31,6 +34,7 @@ export class Bridge {
     private readonly statePanel: Panel,
     private readonly stateURL: string,
     private readonly show: (screen: Screen | null) => void,
+    private readonly run: (command: string) => void,
   ) {
     // Registering the navigation event lets the panel navigate.
     $.RegisterEventHandler('HTMLStartRequest', statePanel, () => false)
@@ -49,7 +53,7 @@ export class Bridge {
     })
   }
 
-  /** read takes one state title: a part of a screen, or the page's status. */
+  /** read takes one state title: a part of a frame, or the page's status. */
   private read(title: string): boolean {
     // A title means the page loaded; cancel its load deadline.
     if (this.loading !== undefined) {
@@ -77,7 +81,7 @@ export class Bridge {
     // Join the part to the screen it belongs to, and acknowledge it. The
     // relay waits for the fragment to change; two fixed fragments keep the
     // panel's history from growing with each part.
-    let screen: Screen
+    let frame: Frame
     try {
       const fields = title.slice(titlePrefix.length).split(':', 4)
       const [id, offset, total] = fields.map(Number)
@@ -105,7 +109,7 @@ export class Bridge {
       if (!bytes) {
         throw new Error('the screen is not packed bytes')
       }
-      screen = Screen.fromBinary(bytes)
+      frame = Frame.fromBinary(bytes)
     } catch (error) {
       // The page times out the unacknowledged part and sends the screen again.
       $.Msg('[Modlock] could not read the screen: ', String(error))
@@ -113,11 +117,27 @@ export class Bridge {
       return false
     }
 
-    // Draw the complete screen.
-    try {
-      this.show(screen)
-    } catch (error) {
-      $.Msg('[Modlock] could not draw the screen: ', String(error))
+    // Draw the complete screen, or run the command.
+    const body = frame.body
+    if (body?.case === 'screen') {
+      try {
+        this.show(body.value)
+      } catch (error) {
+        $.Msg('[Modlock] could not draw the screen: ', String(error))
+      }
+    } else if (body?.case === 'disconnect') {
+      this.run('disconnect')
+    } else if (
+      body?.case === 'connect' &&
+      body.value >= 1 &&
+      body.value <= 65535
+    ) {
+      this.run(`connect 127.0.0.1:${body.value}`)
+    } else {
+      $.Msg(
+        '[Modlock] refused a command: ',
+        JSON.stringify(Frame.toJson(frame)),
+      )
     }
     return false
   }

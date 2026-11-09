@@ -77,4 +77,6 @@ new Bridge(
   // The session's boot script names the page for its relay and port.
   context.GetAttributeString('modlock_bridge', defaultBridge),
   presenter(game, layouts, drawing, stock, cursor),
+  // The session alone sends commands, the two the bridge accepts.
+  (command) => $.DispatchEvent('CitadelConCommand', command),
 )

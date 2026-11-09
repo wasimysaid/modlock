@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package modlock.panorama;
+
+option go_package = "github.com/paralin/modlock/panorama;panorama";
+
+import "github.com/paralin/modlock/src/wasm/ui/ui.proto";
+
+// Frame is one line of the stream a player's renderer reads: the screen to
+// draw, or a console command for the player's game.
+message Frame {
+  oneof body {
+    // Screen is the player's screen.
+    modlock.wasm.ui.Screen screen = 1;
+    // Connect moves the game to the server on this loopback port.
+    uint32 connect = 2;
+    // Disconnect takes the game off its server.
+    Disconnect disconnect = 3;
+  }
+}
+
+// Disconnect asks the game to leave its server.
+message Disconnect {}

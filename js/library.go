@@ -112,7 +112,7 @@ const banner = "/*! Includes protobuf-es-lite under the Apache License 2.0: http
 
 // sources are the paths under the Modlock source that Build reads. Under the
 // message roots it reads only the generated TypeScript messages.
-var sources = append([]string{"js/src", "js/tsconfig.json", "panorama/src", "panorama/browser", "studio/web", "studio/studio.pb.ts"}, messageRoots...)
+var sources = append([]string{"js/src", "js/tsconfig.json", "panorama/src", "panorama/browser", "studio/web", "studio/studio.pb.ts", "panorama/stream.pb.ts"}, messageRoots...)
 
 // escapingImport matches a declaration's import of a module outside the
 // declarations' directory, such as a generated message, which a script

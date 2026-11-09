@@ -15,6 +15,7 @@ import { decodeUtf8 } from './packed.js'
 import { layoutUnloading } from './data.js'
 import { NativeChanges, savedAttribute } from './native.js'
 import { presenter } from './present.js'
+import { Frame } from '../stream.pb.js'
 
 test('unloads layouts before removing, replacing or reloading their ancestors', () => {
   const root = new FakePanel('Panel', 'ModlockUi')
@@ -1316,7 +1317,13 @@ test('reads screens in acknowledged parts', () => {
   // Start a bridge on a fake state panel, which loads the bridge page.
   const state = new FakePanel('HTML', 'ModlockUiState')
   const shown: (Screen | null)[] = []
-  new Bridge(state, 'https://relay/bridge.html', (screen) => shown.push(screen))
+  const ran: string[] = []
+  new Bridge(
+    state,
+    'https://relay/bridge.html',
+    (screen) => shown.push(screen),
+    (command) => ran.push(command),
+  )
   expect(state.url).toBe('https://relay/bridge.html')
   expect(scheduled.size).toBe(1)
   const title = (text: string) =>
@@ -1325,17 +1332,23 @@ test('reads screens in acknowledged parts', () => {
   // A screen in two parts shows once both arrive, each acknowledged. The
   // packing writes printable ASCII as itself and other bytes above U+0100,
   // as the controller does; the name is not ASCII, so the UTF-8 decoder runs.
-  const bytes = Screen.toBinary(
-    Screen.create({ trees: [{ mod: 'arène', nodes: [{ id: '' }] }] }),
+  const source = pack(
+    Frame.create({
+      body: {
+        case: 'screen',
+        value: Screen.create({
+          trees: [{ mod: 'arène', nodes: [{ id: '' }] }],
+        }),
+      },
+    }),
   )
-  let source = ''
-  for (const byte of bytes)
-    source += String.fromCharCode(
-      byte > 0x20 && byte < 0x7f && byte !== 0x5c ? byte : 0x100 + byte,
-    )
   const half = Math.floor(source.length / 2)
-  const part = (id: number, offset: number, chunk: string) =>
-    `modlock:frame:${id}:${offset}:${source.length}:3:${chunk}`
+  const part = (
+    id: number,
+    offset: number,
+    chunk: string,
+    total = source.length,
+  ) => `modlock:frame:${id}:${offset}:${total}:3:${chunk}`
 
   // The ready title ends the page's load deadline.
   title('modlock:bridge-ready')
@@ -1358,7 +1371,37 @@ test('reads screens in acknowledged parts', () => {
   expect(shown.length).toBe(1)
   title('')
   expect(shown).toEqual([shown[0]!, null])
+
+  // The session's two commands run as the game's console commands.
+  const command = (id: number, frame: Frame) => {
+    const text = pack(frame)
+    title(part(id, 0, text, text.length))
+  }
+  command(9, Frame.create({ body: { case: 'connect', value: 27115 } }))
+  command(10, Frame.create({ body: { case: 'disconnect', value: {} } }))
+  expect(ran).toEqual(['connect 127.0.0.1:27115', 'disconnect'])
+
+  // Any other command is refused and logged, and nothing runs.
+  command(11, Frame.create({ body: { case: 'connect', value: 70000 } }))
+  const unknown = String.fromCharCode(0x20, 0x101)
+  title(part(12, 0, unknown, unknown.length))
+  expect(ran).toEqual(['connect 127.0.0.1:27115', 'disconnect'])
+  expect(messages.filter((line) => line.includes('refused'))).toEqual([
+    '[Modlock] refused a command:  {"connect":70000}',
+    '[Modlock] refused a command:  {}',
+  ])
+  expect(shown.length).toBe(2)
 })
+
+/** pack packs a frame as the controller does. */
+function pack(frame: Frame): string {
+  let text = ''
+  for (const byte of Frame.toBinary(frame))
+    text += String.fromCharCode(
+      byte > 0x20 && byte < 0x7f && byte !== 0x5c ? byte : 0x100 + byte,
+    )
+  return text
+}
 
 test("native changes restore each panel's exact original once its last owner releases it", () => {
   // The game's HUD holds a shop the game shows with a style of its own, and

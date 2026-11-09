@@ -36,6 +36,7 @@ remaining checks.
 | Layout unload callbacks | Panorama renderer and layout library | `Modlock.onUnload(handler)` runs once before a layout or its ancestor is removed or replaced; use it to cancel work |
 | Native panel changes | Panorama renderer and layout library | `Modlock.native` is the one way a layout changes the game's own panels; every change is released when the layout unloads |
 | HUD backstop | Panorama renderer | A screen's end returns the main HUD panels' visibility, opacity and hit testing to what its start found |
+| Session commands | Relay and renderer | The relay stream carries `connect` to a loopback port and `disconnect`, which the renderer runs as console commands |
 | Pawn observer service fields | Native entity field layer | Existing field reads and writes resolve `CPlayer_ObserverServices` through a pawn's schema-declared observer services pointer |
 
 A scripted press bypasses the combined input block mask, including blocks from
@@ -51,6 +52,13 @@ Layout unload callbacks cover UI removal, layout replacement and mod reload.
 They run while the layout's panel is still valid. A failed callback is logged
 and does not prevent the remaining callbacks. They do not run when the entire
 game process or its Panorama context is destroyed.
+
+Observer service fields use the existing `readField` and `writeField` API. The
+host verifies `CBasePlayerPawn` ancestry before reading `m_pObserverServices`;
+field storage/type checks and write replication follow the ordinary field path.
+This extension does not select spectator targets or repair client camera state.
+Consumers can require the packaging capability `observer-service-fields-v1` when
+adopting this runtime revision; capability metadata belongs to their packaging.
 
 ## Changing the game's HUD
 
@@ -119,12 +127,14 @@ parts again, then writes those values back and clears the panels' saved
 originals. A direct write that bypassed `Modlock.native` is undone for these
 panels and properties only.
 
-Observer service fields use the existing `readField` and `writeField` API. The
-host verifies `CBasePlayerPawn` ancestry before reading `m_pObserverServices`;
-field storage/type checks and write replication follow the ordinary field path.
-This extension does not select spectator targets or repair client camera state.
-Consumers can require the packaging capability `observer-service-fields-v1` when
-adopting this runtime revision; capability metadata belongs to their packaging.
+## Session commands
+
+The relay stream carries `panorama.Frame`s (`panorama/stream.proto`): the
+player's screen, `connect` with a loopback port, or `disconnect`.
+`Relay.Send` writes a command on an open stream and reports whether one took
+it. The renderer runs `connect 127.0.0.1:<port>` or `disconnect` as a console
+command, and refuses and logs any other frame, including a port outside 1 to
+65535. It never sends either on its own.
 
 ## Native tier definitions
 

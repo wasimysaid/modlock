@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strings"
@@ -29,19 +30,45 @@ type ScreenSource func() (*ui.Screen, <-chan struct{})
 // Relay serves one player's screen to their game on loopback. Deadlock loads
 // only https pages into its HTML panels, so the game's renderer reads through
 // a relay page from another origin: the page streams the screen from GET
-// /panorama/stream, one binary ui.Screen per line, packed by
-// panorama.AppendPackedLine. The game presses buttons with a console command
+// /panorama/stream, one binary panorama.Frame per line, packed by
+// panorama.AppendPackedLine. A frame holds the screen, or a command the
+// renderer runs in the game. The game presses buttons with a console command
 // to the server, not through this page.
 type Relay struct {
 	// origin is the relay page's origin.
 	origin string
 	// screen is the player's screen.
 	screen ScreenSource
+	// commands hands each command to one open stream.
+	commands chan command
+}
+
+// command is a frame to send and a channel closed once a stream wrote it.
+type command struct {
+	frame *panorama.Frame
+	sent  chan struct{}
 }
 
 // NewRelay returns a Relay serving screen to the relay page at origin.
 func NewRelay(origin string, screen ScreenSource) *Relay {
-	return &Relay{origin: origin, screen: screen}
+	return &Relay{origin: origin, screen: screen, commands: make(chan command)}
+}
+
+// Send sends a command frame to the game on an open stream, and reports
+// whether one wrote it before ctx ended.
+func (r *Relay) Send(ctx context.Context, frame *panorama.Frame) bool {
+	c := command{frame: frame, sent: make(chan struct{})}
+	select {
+	case r.commands <- c:
+	case <-ctx.Done():
+		return false
+	}
+	select {
+	case <-c.sent:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // ServeHTTP serves the screen stream to the relay page.
@@ -87,49 +114,53 @@ func (r *Relay) admit(w http.ResponseWriter, request *http.Request) bool {
 	return true
 }
 
-// stream writes the player's screen, then each changed screen, until the page
-// goes away.
+// stream writes the player's screen, then each changed screen and each
+// command, until the page goes away.
 func (r *Relay) stream(w http.ResponseWriter, request *http.Request) {
 	// Write packed lines of text, flushing each one.
 	controller := http.NewResponseController(w)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	var line []byte
+	sequence := uint64(1)
+	write := func(frame *panorama.Frame) bool {
+		data, err := frame.MarshalVT()
+		if err != nil {
+			return false
+		}
+		line = panorama.AppendPackedLine(line[:0], sequence, data)
+		sequence++
+		_, err = w.Write(line)
+		return err == nil && controller.Flush() == nil
+	}
 	var sent *ui.Screen
-	for sequence := uint64(1); ; {
+	for {
 		// Send the screen as one packed line, unless it is the one sent.
 		screen, changed := r.screen()
 		if sent == nil || !screen.EqualVT(sent) {
-			frame, err := screen.MarshalVT()
-			if err != nil {
+			if !write(&panorama.Frame{Body: &panorama.Frame_Screen{Screen: screen}}) {
 				return
 			}
-			line = panorama.AppendPackedLine(line[:0], sequence, frame)
-			if _, err := w.Write(line); err != nil || controller.Flush() != nil {
-				return
-			}
-			sent, sequence = screen, sequence+1
+			sent = screen
 		}
 
-		// Wait for a change, then let the page draw before the next frame.
-		if !wait(request, changed) {
+		// Wait for a change, then let the page draw before the next frame;
+		// a command goes at once.
+		select {
+		case <-changed:
+		case c := <-r.commands:
+			if !write(c.frame) {
+				return
+			}
+			close(c.sent)
+			continue
+		case <-request.Context().Done():
 			return
 		}
-	}
-}
-
-// wait waits for changed, then for FrameGap, and reports whether the request
-// is still open.
-func wait(request *http.Request, changed <-chan struct{}) bool {
-	select {
-	case <-changed:
-	case <-request.Context().Done():
-		return false
-	}
-	select {
-	case <-time.After(FrameGap):
-		return true
-	case <-request.Context().Done():
-		return false
+		select {
+		case <-time.After(FrameGap):
+		case <-request.Context().Done():
+			return
+		}
 	}
 }
 

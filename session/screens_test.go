@@ -2,13 +2,16 @@ package session
 
 import (
 	"bufio"
+	"context"
 	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
+	"github.com/paralin/modlock/panorama"
 	"github.com/paralin/modlock/src/host_app/control"
 	"github.com/paralin/modlock/src/wasm/ui"
 )
@@ -169,8 +172,54 @@ func relayRequest(t *testing.T, url string) *http.Request {
 	return request
 }
 
+// TestRelaySendsCommandsBetweenScreens writes a command on the open stream
+// at once, between the screens, and reports a command no stream took.
+func TestRelaySendsCommandsBetweenScreens(t *testing.T) {
+	screens := NewScreens(0)
+	relay := NewRelay(relayOrigin, screens.Screen)
+	server := httptest.NewServer(relay)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	disconnect := &panorama.Frame{Body: &panorama.Frame_Disconnect{Disconnect: &panorama.Disconnect{}}}
+	if relay.Send(ctx, disconnect) {
+		t.Fatal("a command went out with no stream open")
+	}
+
+	response, err := http.DefaultClient.Do(relayRequest(t, server.URL+"/panorama/stream"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	lines := bufio.NewScanner(response.Body)
+	next(t, lines)
+	sent := make(chan bool)
+	go func() { sent <- relay.Send(context.Background(), disconnect) }()
+	if frame := nextFrame(t, lines); frame.GetDisconnect() == nil {
+		t.Fatalf("the stream sent %v, not the command", frame)
+	}
+	if !<-sent {
+		t.Fatal("a written command was reported unsent")
+	}
+	screens.Handle(joined(0, 76561198000000001))
+	screens.Handle(shown(0, "arena", "Ready"))
+	if screen := next(t, lines); label(screen) != "Ready" {
+		t.Fatalf("the screens stopped after a command: %v", screen)
+	}
+}
+
 // next reads the next screen from the stream.
 func next(t *testing.T, lines *bufio.Scanner) *ui.Screen {
+	t.Helper()
+	frame := nextFrame(t, lines)
+	if frame.GetScreen() == nil {
+		t.Fatalf("the stream sent %v, not a screen", frame)
+	}
+	return frame.GetScreen()
+}
+
+// nextFrame reads the next frame from the stream.
+func nextFrame(t *testing.T, lines *bufio.Scanner) *panorama.Frame {
 	// Read one packed line.
 	t.Helper()
 	if !lines.Scan() {
@@ -181,19 +230,19 @@ func next(t *testing.T, lines *bufio.Scanner) *ui.Screen {
 		t.Fatalf("not a packed line: %q", lines.Text())
 	}
 
-	// Unpack it into a screen.
-	var frame []byte
+	// Unpack it into a frame.
+	var data []byte
 	for _, char := range packed {
 		if char >= 0x100 {
 			char -= 0x100
 		}
-		frame = append(frame, byte(char))
+		data = append(data, byte(char))
 	}
-	screen := &ui.Screen{}
-	if err := screen.UnmarshalVT(frame); err != nil {
+	frame := &panorama.Frame{}
+	if err := frame.UnmarshalVT(data); err != nil {
 		t.Fatal(err)
 	}
-	return screen
+	return frame
 }
 
 // label returns the text of the button the arena mod shows, if any.
