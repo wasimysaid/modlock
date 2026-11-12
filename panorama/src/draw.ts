@@ -28,6 +28,7 @@
 
 import {
   Align,
+  type Cue,
   Decoration,
   Easing,
   type Edges,
@@ -116,7 +117,8 @@ export interface Panel {
  * Panorama is the part of the game's script API the drawing uses. CreatePanel
  * takes the properties a panel is made with only when there are some, since
  * the game refuses an undefined argument. PlaySound plays one of the game's
- * sound events; a host without sound leaves it out.
+ * sound events and returns what StopSound stops, if anything; a host without
+ * sound leaves them out.
  */
 export interface Panorama {
   CreatePanel(
@@ -127,7 +129,8 @@ export interface Panorama {
   ): Panel
   DispatchEvent(event: string, ...values: unknown[]): void
   Msg(...values: unknown[]): void
-  PlaySound?(sound: string): void
+  PlaySound?(sound: string): number | void
+  StopSound?(playing: number): void
   /** MousePosition returns the cursor's position in window pixels. */
   MousePosition?(): { x: number; y: number }
   /** RegisterEventHandler binds a native event to this panel's lifetime. */
@@ -250,13 +253,26 @@ function isClassName(name: string): boolean {
   return /^[\w-]+$/.test(name)
 }
 
+/** isSlug reports whether name can be a mod's slug: lowercase letters and digits joined by single hyphens. */
+function isSlug(name: string): boolean {
+  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)
+}
+
+/** isNodeId reports whether id can be a node's: up to 64 letters, digits, '_', '-', '.' and ':'. */
+function isNodeId(id: string): boolean {
+  return /^[\w.:-]{1,64}$/.test(id)
+}
+
 /**
  * pressCommand is the console command that presses node in mod's interface.
  * The game server hears it with the sending player, so any player's game can
  * press by running it.
  */
 export function pressCommand(mod: string, node: string): string {
-  return `modlockpress ${mod} ${node}`
+  if (isSlug(mod) && isNodeId(node)) {
+    return `modlockpress ${mod} ${node}`
+  }
+  return ''
 }
 
 /**
@@ -271,7 +287,10 @@ export function inputCommand(
   node: string,
   value: InputValue,
 ): string {
-  return `modlockinput ${mod} ${node} ${encodeInput(value)}`
+  if (isSlug(mod) && isNodeId(node)) {
+    return `modlockinput ${mod} ${node} ${encodeInput(value)}`
+  }
+  return ''
 }
 
 /** encodeInput writes an input's value as inputCommand sends it. */
@@ -416,8 +435,11 @@ interface Cycling {
   count: number
 }
 
-/** Tip is what a node's panel shows under the pointer: nothing, its text or its item's shop card. */
-type Tip = '' | 'text' | 'item'
+/**
+ * Tip is what a node's panel shows under the pointer: nothing, its text, its
+ * item's shop card or its ability's window.
+ */
+type Tip = '' | 'text' | 'item' | 'ability'
 
 /**
  * Drawn is one node's panel, its parent, the properties it was made with as
@@ -451,6 +473,8 @@ interface Drawn {
   focused: boolean
   tooltip: string
   item: number
+  ability: number
+  abilityPlayer: number
   tipped: Tip
   sound: string
   hoverSound: string
@@ -463,6 +487,12 @@ interface Drawn {
   classes: string[]
 }
 
+/**
+ * keptSounds is how many of a mod's sounds the drawing can stop: a sound
+ * older than its last few cues has played out.
+ */
+const keptSounds = 8
+
 /** Drawing keeps the panels of every mod's tree under one parent. */
 export class Drawing {
   /** mods holds each mod's lifetime and drawn nodes; the root's id is empty. */
@@ -473,6 +503,15 @@ export class Drawing {
 
   /** routes holds each mod's routes, the value of each by name. */
   private readonly routes = new Map<string, Map<string, string>>()
+
+  /**
+   * cues holds, for each mod, the lifetime its cues belong to, the newest
+   * cue played or passed over, and the sounds lately started, to stop.
+   */
+  private readonly cues = new Map<
+    string,
+    { generation: bigint; heard: number; playing: number[] }
+  >()
 
   constructor(
     private readonly panorama: Panorama,
@@ -494,6 +533,22 @@ export class Drawing {
   /** changed records that this draw changed a loaded layout's data or routes. */
   private changed = false
 
+  /**
+   * release hides every tooltip, shop card and ability window the mods'
+   * panels show and stops the sounds their cues started, as the player
+   * leaves: the game's windows and sounds outlast the panels.
+   */
+  release(): void {
+    for (const drawn of this.mods.values()) {
+      for (const each of drawn.nodes.values()) {
+        this.untip(each)
+      }
+    }
+    for (const mod of this.cues.keys()) {
+      this.silence(mod)
+    }
+  }
+
   /** draw makes the panels match screen, keeping each panel whose node stays. */
   draw(screen: Screen | null): void {
     // Delete the trees of mods the screen no longer holds.
@@ -512,6 +567,15 @@ export class Drawing {
         )
         this.mods.delete(mod)
         this.routes.delete(mod)
+      }
+    }
+
+    // A mod gone from the screen stops its sounds and, back, plays only the
+    // cues that come after.
+    for (const mod of this.cues.keys()) {
+      if (!trees.has(mod)) {
+        this.silence(mod)
+        this.cues.delete(mod)
       }
     }
 
@@ -608,6 +672,63 @@ export class Drawing {
       }
     }
     this.mods.set(mod, { generation, nodes: drawn })
+    this.cue(mod, generation, root.cues ?? [])
+  }
+
+  /**
+   * cue plays each of a mod's cues once: those numbered above the newest it
+   * heard in the same lifetime, all of a new lifetime's, and none on the
+   * first screen it reads, whose cues may be long over. A new lifetime stops
+   * the old one's sounds.
+   */
+  private cue(mod: string, generation: bigint, cues: readonly Cue[]): void {
+    // Note the first screen's cues; a new lifetime starts its count again.
+    const newest = Math.max(0, ...cues.map((each) => each.number ?? 0))
+    const memory = this.cues.get(mod)
+    if (memory === undefined) {
+      this.cues.set(mod, { generation, heard: newest, playing: [] })
+      return
+    }
+    if (memory.generation !== generation) {
+      this.silence(mod)
+      memory.generation = generation
+      memory.heard = 0
+    }
+
+    // Play the cues not yet heard, oldest first, keeping each to stop and
+    // cutting the short ones.
+    const fresh = cues
+      .filter((each) => (each.number ?? 0) > memory.heard)
+      .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+    memory.heard = Math.max(memory.heard, newest)
+    for (const each of fresh) {
+      const playing = this.panorama.PlaySound?.(each.sound ?? '')
+      if (typeof playing !== 'number') {
+        continue
+      }
+      memory.playing = [...memory.playing, playing].slice(-keptSounds)
+      const seconds = each.seconds ?? 0
+      if (seconds > 0) {
+        this.panorama.Schedule?.(seconds, () => {
+          if (memory.playing.includes(playing)) {
+            memory.playing = memory.playing.filter((one) => one !== playing)
+            this.panorama.StopSound?.(playing)
+          }
+        })
+      }
+    }
+  }
+
+  /** silence stops the sounds a mod's cues lately started. */
+  private silence(mod: string): void {
+    const memory = this.cues.get(mod)
+    if (memory === undefined) {
+      return
+    }
+    for (const playing of memory.playing) {
+      this.panorama.StopSound?.(playing)
+    }
+    memory.playing = []
   }
 
   /**
@@ -714,29 +835,16 @@ export class Drawing {
       return
     }
 
-    // Tick, show the item's shop card or the tooltip, or hide them, then
-    // repaint in the new state. The card's second value is the game's
-    // default, as its own shop hover sends.
+    // Tick, show the ability's window, the item's shop card or the tooltip,
+    // or hide them, then repaint in the new state. The card's second value is
+    // the game's default, as its own shop hover sends.
     drawn.over = over
     if (over && drawn.hoverSound) {
       this.panorama.PlaySound?.(drawn.hoverSound)
     }
-    if (over && drawn.item) {
-      this.panorama.DispatchEvent(
-        'CitadelShowModHoverTooltip',
-        drawn.panel,
-        drawn.item,
-        0,
-      )
-      drawn.tipped = 'item'
-    } else if (over && drawn.tooltip) {
-      this.panorama.DispatchEvent(
-        'UIShowTextTooltip',
-        drawn.panel,
-        drawn.tooltip,
-      )
-      drawn.tipped = 'text'
-    } else if (!over) {
+    if (over) {
+      this.tip(drawn)
+    } else {
       this.untip(drawn)
     }
     this.paint(drawn)
@@ -751,11 +859,47 @@ export class Drawing {
     }
   }
 
-  /** untip hides the tooltip or shop card a node's panel shows. */
+  /**
+   * tip shows what a node's panel shows under the pointer: its ability's
+   * window, else its item's shop card, else its tooltip.
+   */
+  private tip(drawn: Drawn): void {
+    if (drawn.ability) {
+      this.panorama.DispatchEvent(
+        'CitadelShowAbilityDetailsTooltip',
+        drawn.panel,
+        drawn.ability,
+        drawn.abilityPlayer,
+      )
+      drawn.tipped = 'ability'
+    } else if (drawn.item) {
+      this.panorama.DispatchEvent(
+        'CitadelShowModHoverTooltip',
+        drawn.panel,
+        drawn.item,
+        0,
+      )
+      drawn.tipped = 'item'
+    } else if (drawn.tooltip) {
+      this.panorama.DispatchEvent(
+        'UIShowTextTooltip',
+        drawn.panel,
+        drawn.tooltip,
+      )
+      drawn.tipped = 'text'
+    }
+  }
+
+  /** untip hides the tooltip, shop card or ability window a node's panel shows. */
   private untip(drawn: Drawn): void {
     const tip = drawn.tipped
     drawn.tipped = ''
-    if (tip === 'item') {
+    if (tip === 'ability') {
+      this.panorama.DispatchEvent(
+        'CitadelHideAbilityDetailsTooltip',
+        drawn.panel,
+      )
+    } else if (tip === 'item') {
       this.panorama.DispatchEvent('CitadelHideModHoverTooltip', drawn.panel)
     } else if (tip === 'text') {
       this.panorama.DispatchEvent('UIHideTextTooltip', drawn.panel)
@@ -1173,6 +1317,8 @@ export class Drawing {
       focused: !fresh && old.focused,
       tooltip: node.tooltip ?? '',
       item: node.item ?? 0,
+      ability: node.ability ?? 0,
+      abilityPlayer: node.abilityPlayer ?? 0,
       tipped: old?.panel === panel ? old.tipped : '',
       sound: soundOf(node.sound),
       hoverSound: soundOf(node.hoverSound),
@@ -1197,6 +1343,7 @@ export class Drawing {
         Object.keys(hover).length !== 0 ||
         !!each.tooltip ||
         !!each.item ||
+        !!each.ability ||
         !!each.hoverSound ||
         /scroll/.test(style.overflow ?? '')
     }
@@ -1221,9 +1368,16 @@ export class Drawing {
     this.paint(each)
     if (
       (each.tipped === 'text' && !each.tooltip) ||
-      (each.tipped === 'item' && each.item !== old?.item)
+      (each.tipped === 'item' && each.item !== old?.item) ||
+      (each.tipped === 'ability' &&
+        (each.ability !== old?.ability ||
+          each.abilityPlayer !== old.abilityPlayer))
     ) {
+      // What changed under the pointer shows at once.
       this.untip(each)
+      if (each.over) {
+        this.tip(each)
+      }
     }
 
     // A new panel eases from its enter style on the next frame, and a new

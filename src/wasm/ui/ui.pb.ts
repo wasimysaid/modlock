@@ -182,6 +182,26 @@ export enum HudPart {
    * stay.
    */
   STATS = 9,
+
+  /**
+   * HUD_PART_HERO_PICKER is the screen the game shows a player who has not
+   * picked a hero yet, with its team and spectate buttons, for a mod that
+   * gives the hero itself.
+   */
+  HERO_PICKER = 10,
+
+  /**
+   * HUD_PART_BROKER_COUNTDOWN is the countdown in the Broker's window while
+   * the player stands at his booth, for a mod whose Broker keeps no time.
+   */
+  BROKER_COUNTDOWN = 11,
+
+  /**
+   * HUD_PART_ALL is the whole of the game's HUD, for a screen that takes the
+   * player's whole view, such as a draft before the match. The mods' own
+   * interfaces, Hyperline's and the game's tooltips stay.
+   */
+  ALL = 12,
 }
 
 export const HudPart_Enum = /* @__PURE__ */ createEnumType(
@@ -197,6 +217,9 @@ export const HudPart_Enum = /* @__PURE__ */ createEnumType(
     [7, 'HUD_PART_ABILITIES'],
     [8, 'HUD_PART_STATUS'],
     [9, 'HUD_PART_STATS'],
+    [10, 'HUD_PART_HERO_PICKER'],
+    [11, 'HUD_PART_BROKER_COUNTDOWN'],
+    [12, 'HUD_PART_ALL'],
   ],
 )
 
@@ -692,6 +715,18 @@ export interface Node {
    */
   item?: number
   /**
+   * Ability is an ability's id, the game's string token of its class name as
+   * item's is, whose window the game shows while the pointer is over the
+   * node, in place of the tooltip and the shop card, in the player's
+   * language. A node with an ability takes the pointer.
+   */
+  ability?: number
+  /**
+   * AbilityPlayer is the player slot whose hero the ability's window reads
+   * its numbers from; that hero must stand on the map.
+   */
+  abilityPlayer?: number
+  /**
    * Sound is the game's sound event a button plays when pressed, such as
    * "UI.MainMenu.Activate": one or more letters, digits, '_', '-' and '.'.
    */
@@ -780,6 +815,34 @@ export interface Node {
    */
   freeCursorAsks?: number
   /**
+   * Cues are sounds the player's game plays for them alone, each once; only
+   * the root's list counts. The renderer plays each cue numbered above the
+   * newest it has played for the mod, notes the list it first sees without
+   * playing it, so a reloaded renderer plays nothing old, and plays a new UI
+   * lifetime's list from its start. The list keeps only the last few cues.
+   */
+  cues?: Cue[]
+  /**
+   * AbilityBarPresses asks for clicks on the game's own ability bar: a click
+   * on the icon or the upgrade pips of the ability in slot N, 0 to 3, reaches
+   * the mod as a press of the node "ability:N", which no element's id can be.
+   * The renderer's stock guard sends one press per click while it may hold
+   * the game's HUD, so a handler left by an ended session sends nothing. Only
+   * the root's flag counts.
+   */
+  abilityBarPresses?: boolean
+  /**
+   * AbilityDisplay shows abilities in place of the ones the game shows for a
+   * player's hero: on that player's row of the game's Tab screen, and for the
+   * row marked own, on the player's own ability bar too. The game draws those
+   * from the hero's standard abilities by slot, so an ability the mod gave
+   * with replaceAbility shows as the one it replaced. The renderer's stock
+   * guard draws them in the game's own frame, ring and pips, opens the game's
+   * ability window for them, and gives the game's own back once the screen
+   * stops asking or it may no longer hold the HUD. Only the root's rows count.
+   */
+  abilityDisplay?: AbilityRow[]
+  /**
    * Input is the control an input node draws and the value it holds. Each
    * change the player makes reaches the mod as a UiInputEvent, which the host
    * checks against the control: a slider's range and step, a dropdown's
@@ -833,6 +896,11 @@ export const Node: MessageType<Node> = /* @__PURE__ */ createMessageType<Node>(
     [31, 'free_cursor', 8],
     [32, 'item', 13],
     [33, 'free_cursor_asks', 13],
+    [34, 'ability', 13],
+    [35, 'ability_player', 13],
+    [36, 'cues', 11, 1, Cue.codec],
+    [37, 'ability_bar_presses', 8],
+    [38, 'ability_display', 11, 1, AbilityRow.codec],
   ],
   {
     decode: (r: BinaryReader, end: number, m: Node): Node => {
@@ -975,6 +1043,23 @@ export const Node: MessageType<Node> = /* @__PURE__ */ createMessageType<Node>(
             break
           case 33:
             m.freeCursorAsks = r.uint32()
+            break
+          case 34:
+            m.ability = r.uint32()
+            break
+          case 35:
+            m.abilityPlayer = r.uint32()
+            break
+          case 36:
+            ;(m.cues ??= []).push(Cue.decode(r, r.delimited(), {}))
+            break
+          case 37:
+            m.abilityBarPresses = r.bool()
+            break
+          case 38:
+            ;(m.abilityDisplay ??= []).push(
+              AbilityRow.decode(r, r.delimited(), {}),
+            )
             break
           default:
             r.skip(t)
@@ -1128,6 +1213,257 @@ export const Node: MessageType<Node> = /* @__PURE__ */ createMessageType<Node>(
       {
         const v = m.freeCursorAsks
         if (v) w.uint32(264).uint32(v)
+      }
+      {
+        const v = m.ability
+        if (v) w.uint32(272).uint32(v)
+      }
+      {
+        const v = m.abilityPlayer
+        if (v) w.uint32(280).uint32(v)
+      }
+      {
+        const a = m.cues
+        if (a != null) for (const e of a) Cue.writeField(w, 36, e)
+      }
+      {
+        const v = m.abilityBarPresses
+        if (v) w.uint32(296).bool(v)
+      }
+      {
+        const a = m.abilityDisplay
+        if (a != null) for (const e of a) AbilityRow.writeField(w, 38, e)
+      }
+    },
+  },
+)
+
+/**
+ * AbilityRow is one player's abilities, as AbilityDisplay shows them.
+ *
+ * @generated from message modlock.wasm.ui.AbilityRow
+ */
+export interface AbilityRow {
+  /**
+   * Player is the player's slot, whose hero the ability window reads its
+   * numbers from.
+   */
+  player?: number
+  /**
+   * Name is the player's name, which matches the player's Tab row.
+   */
+  name?: string
+  /**
+   * Hero is the class name of the player's hero, such as hero_atlas, which
+   * matches a bot's row: a bot's row shows its hero's name in place of one.
+   */
+  hero?: string
+  /**
+   * Own marks the row of the player whose screen this is; its abilities go on
+   * the ability bar as well.
+   */
+  own?: boolean
+  /**
+   * Abilities holds the four ability slots in order, at most four.
+   */
+  abilities?: ShownAbility[]
+}
+
+export const AbilityRow: MessageType<AbilityRow> =
+  /* @__PURE__ */ createMessageType<AbilityRow>(
+    'modlock.wasm.ui.AbilityRow',
+    () => [
+      [1, 'player', 13],
+      [2, 'name', 9],
+      [3, 'hero', 9],
+      [4, 'own', 8],
+      [5, 'abilities', 11, 1, ShownAbility.codec],
+    ],
+    {
+      decode: (r: BinaryReader, end: number, m: AbilityRow): AbilityRow => {
+        while (r.pos < end) {
+          const t = r.tag()
+          if ((t & 7) === 4) return m
+          switch (t >>> 3) {
+            case 1:
+              m.player = r.uint32()
+              break
+            case 2:
+              m.name = r.string()
+              break
+            case 3:
+              m.hero = r.string()
+              break
+            case 4:
+              m.own = r.bool()
+              break
+            case 5:
+              ;(m.abilities ??= []).push(
+                ShownAbility.decode(r, r.delimited(), {}),
+              )
+              break
+            default:
+              r.skip(t)
+          }
+        }
+        return m
+      },
+      encode: (m: AbilityRow, w: Writer): void => {
+        {
+          const v = m.player
+          if (v) w.uint32(8).uint32(v)
+        }
+        {
+          const v = m.name
+          if (v) w.uint32(18).string(v)
+        }
+        {
+          const v = m.hero
+          if (v) w.uint32(26).string(v)
+        }
+        {
+          const v = m.own
+          if (v) w.uint32(32).bool(v)
+        }
+        {
+          const a = m.abilities
+          if (a != null) for (const e of a) ShownAbility.writeField(w, 5, e)
+        }
+      },
+    },
+  )
+
+/**
+ * ShownAbility is the ability AbilityDisplay shows in one slot.
+ *
+ * @generated from message modlock.wasm.ui.ShownAbility
+ */
+export interface ShownAbility {
+  /**
+   * Ability is the ability's id, as Node.ability, whose window the game shows
+   * over it; zero shows none.
+   */
+  ability?: number
+  /**
+   * Image is the ability's picture, a path in the game's content as
+   * Node.image is. Without one, the slot shows the game's own ability.
+   */
+  image?: string
+  /**
+   * Upgrades holds the bought tiers, as Ability.upgrades does: bit 0 unlocks
+   * it and bits 1 to 3 are its upgrades.
+   */
+  upgrades?: number
+}
+
+export const ShownAbility: MessageType<ShownAbility> =
+  /* @__PURE__ */ createMessageType<ShownAbility>(
+    'modlock.wasm.ui.ShownAbility',
+    () => [
+      [1, 'ability', 13],
+      [2, 'image', 9],
+      [3, 'upgrades', 13],
+    ],
+    {
+      decode: (r: BinaryReader, end: number, m: ShownAbility): ShownAbility => {
+        while (r.pos < end) {
+          const t = r.tag()
+          if ((t & 7) === 4) return m
+          switch (t >>> 3) {
+            case 1:
+              m.ability = r.uint32()
+              break
+            case 2:
+              m.image = r.string()
+              break
+            case 3:
+              m.upgrades = r.uint32()
+              break
+            default:
+              r.skip(t)
+          }
+        }
+        return m
+      },
+      encode: (m: ShownAbility, w: Writer): void => {
+        {
+          const v = m.ability
+          if (v) w.uint32(8).uint32(v)
+        }
+        {
+          const v = m.image
+          if (v) w.uint32(18).string(v)
+        }
+        {
+          const v = m.upgrades
+          if (v) w.uint32(24).uint32(v)
+        }
+      },
+    },
+  )
+
+/**
+ * Cue is one sound played to one player.
+ *
+ * @generated from message modlock.wasm.ui.Cue
+ */
+export interface Cue {
+  /**
+   * Number orders the mod's cues for the player; a later cue has a higher
+   * number.
+   */
+  number?: number
+  /**
+   * Sound is the game's sound event, named as Node's sound is.
+   */
+  sound?: string
+  /**
+   * Seconds cuts the sound after that long, keeping only its start; zero
+   * plays it out.
+   */
+  seconds?: number
+}
+
+export const Cue: MessageType<Cue> = /* @__PURE__ */ createMessageType<Cue>(
+  'modlock.wasm.ui.Cue',
+  () => [
+    [1, 'number', 13],
+    [2, 'sound', 9],
+    [3, 'seconds', 2],
+  ],
+  {
+    decode: (r: BinaryReader, end: number, m: Cue): Cue => {
+      while (r.pos < end) {
+        const t = r.tag()
+        if ((t & 7) === 4) return m
+        switch (t >>> 3) {
+          case 1:
+            m.number = r.uint32()
+            break
+          case 2:
+            m.sound = r.string()
+            break
+          case 3:
+            m.seconds = r.float()
+            break
+          default:
+            r.skip(t)
+        }
+      }
+      return m
+    },
+    encode: (m: Cue, w: Writer): void => {
+      {
+        const v = m.number
+        if (v) w.uint32(8).uint32(v)
+      }
+      {
+        const v = m.sound
+        if (v) w.uint32(18).string(v)
+      }
+      {
+        const v = m.seconds
+        if (v != null && v !== 0) w.uint32(29).float(v)
       }
     },
   },

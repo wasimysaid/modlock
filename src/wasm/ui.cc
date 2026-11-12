@@ -38,6 +38,14 @@ constexpr int kMaxOptions = 64;
 // line stays short of the engine's limit; kEntryLength is an entry's limit
 // in characters when the mod sets none.
 constexpr size_t kMaxInput = 240;
+
+// IsAbilityBarNode reports whether node is the reserved press of a click on
+// the game's ability bar: "ability:" and a slot from 0 to 3.
+bool IsAbilityBarNode(std::string_view node) {
+  constexpr std::string_view kPrefix = "ability:";
+  return node.size() == kPrefix.size() + 1 && node.starts_with(kPrefix) &&
+         node.back() >= '0' && node.back() <= '3';
+}
 constexpr uint32_t kEntryLength = 100;
 
 // kMaxClasses bounds a node's classes, and kMaxSheets the root's style sheets.
@@ -125,11 +133,48 @@ std::expected<void, std::string> CheckInput(const ui::Node& node) {
   return {};
 }
 
+// IsContentImage reports whether path is an image in the game's content.
+bool IsContentImage(std::string_view path) {
+  return std::ranges::any_of(kImageRoots, [&](auto root) { return path.starts_with(root); });
+}
+
+// CheckAbilityDisplay returns why a node's ability display cannot be drawn:
+// a row per player at most, four abilities a row, and short names, a hero
+// that is a word, and pictures from the game's content.
+std::expected<void, std::string> CheckAbilityDisplay(const ui::Node& node) {
+  // The rows fit the players.
+  if (node.ability_display_size() > kMaxSlot + 1) {
+    return std::unexpected("node " + node.id() + ": too many ability rows");
+  }
+  for (const auto& row : node.ability_display()) {
+    // Each row names a player as the game's Tab row does.
+    if (row.player() > static_cast<uint32_t>(kMaxSlot) || row.name().size() > kMaxName ||
+        (!row.hero().empty() && (row.hero().size() > kMaxName || !IsWord(row.hero(), "")))) {
+      return std::unexpected("node " + node.id() +
+                             ": an ability row names a player's slot, a short name and a hero");
+    }
+
+    // Each of its four abilities shows a picture from the game's content.
+    if (row.abilities_size() > 4) {
+      return std::unexpected("node " + node.id() + ": an ability row holds four abilities");
+    }
+    for (const auto& shown : row.abilities()) {
+      if (!shown.image().empty() && !IsContentImage(shown.image())) {
+        return std::unexpected("node " + node.id() + ": images come from the game's content");
+      }
+    }
+  }
+  return {};
+}
+
 // Check returns why node cannot be drawn, if it cannot.
 std::expected<void, std::string> Check(const ui::Node& node) {
   // Each field must fit its limit.
   if (node.id().size() > kMaxId) {
     return std::unexpected("a node id is too long");
+  }
+  if (!node.id().empty() && !IsWord(node.id(), "-.:")) {
+    return std::unexpected("a node id is letters, digits, '_', '-', '.' and ':'");
   }
   if (node.text().size() > kMaxText) {
     return std::unexpected("node " + node.id() + ": text is too long");
@@ -165,18 +210,15 @@ std::expected<void, std::string> Check(const ui::Node& node) {
   }
 
   // An image must come from the game's content.
-  if (!node.image().empty()) {
-    bool allowed = false;
-    for (const auto root : kImageRoots) {
-      allowed = allowed || node.image().starts_with(root);
-    }
-    if (!allowed) {
-      return std::unexpected("node " + node.id() + ": images come from the game's content");
-    }
+  if (!node.image().empty() && !IsContentImage(node.image())) {
+    return std::unexpected("node " + node.id() + ": images come from the game's content");
   }
 
-  // Localized text and inputs have their own limits.
+  // Localized text, inputs and the ability display have their own limits.
   if (auto checked = CheckLabel(node); !checked) {
+    return checked;
+  }
+  if (auto checked = CheckAbilityDisplay(node); !checked) {
     return checked;
   }
   return CheckInput(node);
@@ -339,6 +381,11 @@ bool UiTrees::IsButton(int32_t slot, std::string_view node) const {
   if (tree == trees_.end()) {
     return false;
   }
+  // A press on the game's ability bar counts while the root asks for them.
+  if (IsAbilityBarNode(node)) {
+    auto root = tree->second.find("");
+    return root != tree->second.end() && root->second.ability_bar;
+  }
   auto found = tree->second.find(node);
   return found != tree->second.end() && found->second.kind == ui::KIND_BUTTON;
 }
@@ -347,6 +394,7 @@ UiTrees::Shown UiTrees::Keep(const ui::Node& node) {
   // Keep the kind, and an input's control and state.
   Shown shown;
   shown.kind = node.kind();
+  shown.ability_bar = node.id().empty() && node.ability_bar_presses();
   if (node.kind() != ui::KIND_INPUT) {
     return shown;
   }

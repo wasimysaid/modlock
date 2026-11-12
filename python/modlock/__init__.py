@@ -891,6 +891,21 @@ class TraceHit:
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
+class SoundOptions:
+    """SoundOptions shape one sound; the zero value plays it to every player as
+    the game made it.
+    """
+
+    # volume scales the sound's loudness; 1 plays it as the game made it.
+    volume: float | None = None
+    # pitch scales the sound's pitch; 1 plays it as the game made it.
+    pitch: float | None = None
+    # listeners are the player slots that hear the sound; empty means every
+    # player.
+    listeners: list[int] = dataclasses.field(default_factory=lambda: list[int]())
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
 class ScreenTiming:
     """ScreenTiming is a screen effect's timing in seconds."""
 
@@ -1998,7 +2013,9 @@ class Player:
     def select_hero(self, hero: str | int, team: int) -> int | None:
         """select_hero gives the player a hero on a team, 2 or 3, and returns the
         hero's identifier as Pawn.hero reports it. The hero appears on a later
-        frame.
+        frame. A hero the player picked through the game's Change Hero wins: the
+        game removes the old hero before it spawns the pick, and a call in that
+        gap, up to 5 seconds, fails and leaves the pick to land.
         """
         response = _call("SelectHero", "SelectHeroRequest", {"player": self, "hero": hero, "team": team}, "HeroResponse")
         if response is None:
@@ -2113,6 +2130,28 @@ class Player:
         """
         return _call("GiveItem", "GiveItemRequest", {"player": self, "item": item, "imbue": imbue}) is not None
 
+    def buy_item(self, item: str, imbue: int | None = None, source: int | None = None) -> bool:
+        """buy_item buys an item for the hero as the shop does, under the shop's own
+        rules and for the souls it charges, or fails and charges nothing when the
+        shop refuses, as away from the shop or without the souls. With imbue, an
+        imbuing item strengthens whatever ability the hero holds in that slot, 0
+        to 3, including one ReplaceAbility put there, which the game's own
+        buydependentitem refuses; the call fails, buying nothing, when the
+        ability does not accept it.
+        """
+        return _call("BuyItem", "BuyItemRequest", {"player": self, "item": item, "imbue": imbue, "source": source}) is not None
+
+    def train_ability(self, slot: int) -> bool:
+        """train_ability trains or upgrades whatever ability the hero holds in a
+        slot, 0 to 3, as the player holding the upgrade key and pressing the
+        slot's ability key does: an untrained ability trains for an ability
+        unlock, and a trained one buys its next tier for ability points. It works
+        on an ability ReplaceAbility put there, which the game's own commands for
+        a slot do not reach. When the game refuses, as without an unlock or the
+        points, the call fails and nothing is spent.
+        """
+        return _call("TrainAbility", "TrainAbilityRequest", {"player": self, "slot": slot}) is not None
+
     def replace_ability(self, index: int, ability: str, keep: bool | None = None) -> bool:
         """replace_ability puts the ability named ability, untrained unless keep
         carries the old one's progress, in the hero's ability slot index, as
@@ -2221,11 +2260,15 @@ class Player:
         """heal restores health to the player's hero, up to its maximum."""
         return _call("Heal", "HealRequest", {"player": self, "amount": amount}) is not None
 
-    def sound(self, sound: str) -> bool:
+    def sound(self, sound: str, options: SoundOptions | None = None) -> int | None:
         """sound plays a game sound event, such as Damage.Send.Crit, on the
-        player's hero.
+        player's hero, and returns its ID. It follows the hero as it moves.
+        Volume and pitch scale the sound, and listeners limit who hears it.
         """
-        return _call("Sound", "SoundRequest", {"player": self, "sound": sound}) is not None
+        response = _call("Sound", "SoundRequest", {"player": self, "sound": sound, "options": options}, "SoundResponse")
+        if response is None:
+            return None
+        return response["id"]
 
     def restore_hero(self, target: HeroTarget) -> bool:
         """restore_hero gives the player's live hero target over the next few
@@ -2248,6 +2291,12 @@ class Player:
         view.
         """
         return _call("ClearScreenEffect", "ClearScreenEffectRequest", {"player": self, "effect": effect}) is not None
+
+    def silence_voice(self, concepts: list[str] | None = None) -> bool:
+        """silence_voice keeps the player's hero from speaking the named voice
+        concepts until called again, on top of those silenced for everyone.
+        """
+        return _call("SilencePlayerVoice", "SilencePlayerVoiceRequest", {"player": self, "concepts": concepts}) is not None
 
     def remove_bot(self) -> bool:
         """remove_bot removes a bot the mod added."""
@@ -2480,6 +2529,22 @@ _SCHEMA: wire.Schema = {
             wire.Field(3, "imbue", "uint32", optional=True),
         ],
     ),
+    "BuyItemRequest": (
+        None,
+        [
+            wire.Field(1, "player", "int32", cls=Player, key="slot"),
+            wire.Field(2, "item", "string"),
+            wire.Field(3, "imbue", "uint32", optional=True),
+            wire.Field(4, "source", "uint32", optional=True),
+        ],
+    ),
+    "TrainAbilityRequest": (
+        None,
+        [
+            wire.Field(1, "player", "int32", cls=Player, key="slot"),
+            wire.Field(2, "slot", "uint32"),
+        ],
+    ),
     "ReplaceAbilityRequest": (
         None,
         [
@@ -2696,11 +2761,20 @@ _SCHEMA: wire.Schema = {
             wire.Field(3, "text", "string"),
         ],
     ),
+    "SoundOptions": (
+        SoundOptions,
+        [
+            wire.Field(1, "volume", "float", optional=True),
+            wire.Field(2, "pitch", "float", optional=True),
+            wire.Field(3, "listeners", "int32", repeated=True),
+        ],
+    ),
     "SoundRequest": (
         None,
         [
             wire.Field(1, "player", "int32", cls=Player, key="slot"),
             wire.Field(2, "sound", "string"),
+            wire.Field(3, "options", "message", optional=True, message="SoundOptions"),
         ],
     ),
     "EmitSoundRequest": (
@@ -2708,6 +2782,27 @@ _SCHEMA: wire.Schema = {
         [
             wire.Field(1, "entity", "uint32"),
             wire.Field(2, "sound", "string"),
+            wire.Field(3, "options", "message", optional=True, message="SoundOptions"),
+        ],
+    ),
+    "SoundResponse": (
+        None,
+        [
+            wire.Field(1, "id", "uint32"),
+        ],
+    ),
+    "AdjustSoundRequest": (
+        None,
+        [
+            wire.Field(1, "id", "uint32"),
+            wire.Field(2, "volume", "float", optional=True),
+            wire.Field(3, "pitch", "float", optional=True),
+        ],
+    ),
+    "StopSoundRequest": (
+        None,
+        [
+            wire.Field(1, "id", "uint32"),
         ],
     ),
     "ScreenEffectRequest": (
@@ -2732,6 +2827,19 @@ _SCHEMA: wire.Schema = {
         [
             wire.Field(1, "player", "int32", cls=Player, key="slot"),
             wire.Field(2, "effect", "enum", enum=_ScreenEffect),
+        ],
+    ),
+    "SilenceVoiceRequest": (
+        None,
+        [
+            wire.Field(1, "concepts", "string", repeated=True),
+        ],
+    ),
+    "SilencePlayerVoiceRequest": (
+        None,
+        [
+            wire.Field(1, "player", "int32", cls=Player, key="slot"),
+            wire.Field(2, "concepts", "string", repeated=True),
         ],
     ),
     "ReadFieldRequest": (
@@ -4020,6 +4128,15 @@ def hero_build(hero: str) -> list[BuildCategory]:
     return response["categories"]
 
 
+def silence_voice(concepts: list[str] | None = None) -> bool:
+    """silence_voice keeps every hero from speaking the named voice concepts,
+    until called again. A hero still hears the game's other sounds. Stopping
+    the mod lets them speak; a name the game does not know fails the call
+    and the known ones still apply.
+    """
+    return _call("SilenceVoice", "SilenceVoiceRequest", {"concepts": concepts}) is not None
+
+
 def read_field(entity: int, class_name: str, field: str, type: FieldType) -> FieldValue | None:
     """read_field reads one schema field of a live entity, such as the int32
     m_iHealth of CBaseEntity. The host finds the field by name, so it
@@ -4063,7 +4180,9 @@ def write_field(entity: int, class_name: str, field: str, type: FieldType, value
     entity's panel only when it creates the entity, so a write to
     m_DialogXMLName sends every client a full update on the next frame, which
     creates every entity again; the players' game stalls briefly, so write a
-    layout when it changes, not every frame.
+    layout when it changes, not every frame. It refuses the fields that
+    name a console line or a script, such as m_iszPrivateVScripts, here and
+    among the fields CreateEntity writes before spawn.
     """
     return _call("WriteField", "WriteFieldRequest", {"entity": entity, "class_name": class_name, "field": field, "type": type, "value": value}) is not None
 
@@ -4249,11 +4368,14 @@ def call_service(service: str, method: str, payload: bytes) -> bytes | None:
 
 
 def create_entity(options: EntityOptions) -> int | None:
-    """create_entity creates any entity the server knows by its designer name,
+    """create_entity creates an entity the server knows by its designer name,
     such as npc_trooper_boss or prop_dynamic, with spawn key values and fields
     written before it spawns. The world removes it when the world ends;
     stopping the mod removes it too. It refuses an ability, item or weapon,
-    which only a hero holds: GiveItem and ReplaceAbility give one.
+    which only a hero holds: GiveItem and ReplaceAbility give one. It refuses
+    a class that runs console lines or loads scripts or entities past a mod's
+    checks, such as point_servercommand, and key values that name a console
+    line or a script, such as vscripts.
     """
     response = _call("CreateEntity", "EntityOptions", options, "EntityResponse")
     if response is None:
@@ -4264,7 +4386,9 @@ def create_entity(options: EntityOptions) -> int | None:
 def fire_input(entity: int, input: str, value: EntityValue | None = None, activator: int | None = None) -> bool:
     """fire_input sends an input to a live entity, as a map's output would, such
     as Skin with the integer 1. The value must have the type the input reads.
-    It reports false once the entity is gone.
+    It reports false once the entity is gone. It refuses AddOutput and the
+    script inputs on every entity, and any input to an entity of a class
+    CreateEntity refuses.
     """
     response = _call("FireInput", "FireInputRequest", {"entity": entity, "input": input, "value": value, "activator": activator}, "AliveResponse")
     if response is None:
@@ -4448,9 +4572,29 @@ def push_entity(entity: int, velocity: Vector, spin: Vector | None = None) -> bo
     return _call("PushEntity", "PushEntityRequest", {"entity": entity, "velocity": velocity, "spin": spin}) is not None
 
 
-def emit_sound(entity: int, sound: str) -> bool:
-    """emit_sound plays one game sound on any entity, such as a projectile."""
-    return _call("EmitSound", "EmitSoundRequest", {"entity": entity, "sound": sound}) is not None
+def emit_sound(entity: int, sound: str, options: SoundOptions | None = None) -> int | None:
+    """emit_sound plays one game sound on any entity, such as a projectile, and
+    returns its ID. Volume and pitch scale the sound, and listeners limit who
+    hears it.
+    """
+    response = _call("EmitSound", "EmitSoundRequest", {"entity": entity, "sound": sound, "options": options}, "SoundResponse")
+    if response is None:
+        return None
+    return response["id"]
+
+
+def adjust_sound(id: int, volume: float | None = None, pitch: float | None = None) -> bool:
+    """adjust_sound changes the volume or pitch of a sound Sound or EmitSound
+    started, while it plays.
+    """
+    return _call("AdjustSound", "AdjustSoundRequest", {"id": id, "volume": volume, "pitch": pitch}) is not None
+
+
+def stop_sound(id: int) -> bool:
+    """stop_sound stops a sound Sound or EmitSound started. A sound that already
+    ended is not an error.
+    """
+    return _call("StopSound", "StopSoundRequest", {"id": id}) is not None
 
 
 def watch_projectiles(options: ProjectileOptions) -> bool:

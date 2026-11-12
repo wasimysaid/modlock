@@ -13,18 +13,47 @@ import {
   UiRequest,
   Weight,
 } from '../../src/wasm/ui/ui.pb.js'
+import {
+  PawnResponse,
+  PlayerRequest,
+} from '../../src/wasm/players/players.pb.js'
 import { Call, FrameEvent, Reply } from '../../src/wasm/wasm.pb.js'
 import { bind, deliver } from '../src/host.js'
-import { Action, freeCursor, hideHud, jsx, sheet, show } from '../src/index.js'
+import {
+  abilityBarPresses,
+  abilityDisplay,
+  Action,
+  freeCursor,
+  hideHud,
+  itemId,
+  jsx,
+  sheet,
+  show,
+  uiSound,
+} from '../src/index.js'
 import { Player } from '../src/host.gen.js'
-import { change } from '../src/ui.js'
+import { keepPlayers } from '../src/players.js'
+import { change, press } from '../src/ui.js'
 
 // The library sends each interface change through the transport, which
-// records it.
+// records it. The stand-in game's pawns are slot 2's Atlas and slot 3's Bebop.
 const sent: UiRequest[] = []
+const heroOf = new Map([
+  [2, 6],
+  [3, 15],
+])
 bind((encoded) => {
   const call = Call.fromBinary(encoded)
   if (call.method === 'Ui') sent.push(UiRequest.fromBinary(call.request))
+  if (call.method === 'Pawn') {
+    const slot = PlayerRequest.fromBinary(call.request).player ?? 0
+    const hero = heroOf.get(slot)
+    return Reply.toBinary({
+      response: PawnResponse.toBinary({
+        pawn: hero === undefined ? undefined : { entity: 100 + slot, hero },
+      }),
+    })
+  }
   return Reply.toBinary({})
 })
 
@@ -82,6 +111,12 @@ test('a redraw sends only the nodes that changed, under their first ids', () => 
     HudPart.MINIMAP,
     HudPart.ABILITIES,
   ])
+  hideHud(player, ['heroPicker', 'brokerCountdown', 'all'])
+  expect(sent.at(-1)!.change!.set![0]!.hideHud).toEqual([
+    HudPart.HERO_PICKER,
+    HudPart.BROKER_COUNTDOWN,
+    HudPart.ALL,
+  ])
   hideHud(player, [])
   expect(sent.at(-1)!.change!.set![0]!.hideHud ?? []).toEqual([])
 
@@ -118,6 +153,145 @@ test('a redraw sends only the nodes that changed, under their first ids', () => 
   show(player, score('Score  Leading'))
   const classed = sent.at(-1)!.change!.set!
   expect(classed.map((node) => node.classes)).toEqual([['Score', 'Leading']])
+})
+
+test('clicks on the ability bar reach the handler while the root asks', () => {
+  // The root asks for the bar's clicks, and each slot's click reaches the
+  // handler with its slot.
+  const player = new Player(6)
+  show(player, jsx('panel', {}))
+  const slots: number[] = []
+  abilityBarPresses(player, (by, slot) => {
+    expect(by.slot).toBe(6)
+    slots.push(slot)
+  })
+  expect(sent.at(-1)!.change!.set![0]!.abilityBarPresses).toBe(true)
+  for (const node of ['ability:0', 'ability:3', 'ability:4', 'ability:', 'x']) {
+    press(player, node)
+  }
+  expect(slots).toEqual([0, 3])
+
+  // Without a handler the root stops asking and a click reaches nothing.
+  abilityBarPresses(player)
+  expect(sent.at(-1)!.change!.set![0]!.abilityBarPresses ?? false).toBe(false)
+  press(player, 'ability:1')
+  expect(slots).toEqual([0, 3])
+})
+
+test("the ability display names each row's player as Tab shows them", () => {
+  // Each row carries its player's slot, name and hero, with its abilities'
+  // ids, pictures and upgrades; the viewer's row is its own.
+  // Another test file may have left a reported roster; report this one.
+  const viewer = new Player(2)
+  keepPlayers(
+    [
+      [2, 'Ada', false],
+      [3, 'Bebop', true],
+    ].map(([slot, name, bot]) => ({
+      player: Player.of(slot as number),
+      steamId: 0n,
+      name: name as string,
+      bot: bot as boolean,
+      ready: false,
+      generation: 0,
+      roles: [],
+    })),
+  )
+  show(viewer, jsx('panel', {}))
+  abilityDisplay(viewer, [
+    {
+      player: viewer,
+      abilities: [
+        {
+          name: 'ability_bebop_hook',
+          image: 'file://{images}/hud/abilities/hook.psd',
+          upgrades: 0b11,
+        },
+        undefined,
+      ],
+    },
+    {
+      player: new Player(3),
+      abilities: [
+        { name: 'citadel_ability_bull_heal', image: 'file://{images}/a.psd' },
+      ],
+    },
+  ])
+  const rows = sent.at(-1)!.change!.set![0]!.abilityDisplay!
+  expect(
+    rows.map((row) => [row.player, row.name, row.hero, row.own ?? false]),
+  ).toEqual([
+    [2, 'Ada', 'hero_atlas', true],
+    [3, 'Bebop', 'hero_bebop', false],
+  ])
+  expect(rows[0]!.abilities).toEqual([
+    {
+      ability: itemId('ability_bebop_hook'),
+      image: 'file://{images}/hud/abilities/hook.psd',
+      upgrades: 3,
+    },
+    {},
+  ])
+
+  // Without rows the root shows none, and the game's own come back.
+  abilityDisplay(viewer)
+  expect(sent.at(-1)!.change!.set![0]!.abilityDisplay ?? []).toEqual([])
+})
+
+test("an ability names the game's window by its id and its hero's slot", () => {
+  // The window reads its numbers off the given player's hero.
+  const player = new Player(9)
+  const helper = new Player(0)
+  show(
+    player,
+    jsx('panel', {
+      ability: { name: 'ability_bebop_hook', player: helper },
+      children: jsx('panel', { tooltip: 'none' }),
+    }),
+  )
+  const nodes = sent.at(-1)!.change!.set!
+  const cell = nodes.find((node) => node.ability)!
+  expect(cell.ability).toBe(itemId('ability_bebop_hook'))
+  expect(cell.abilityPlayer ?? 0).toBe(0)
+  const plain = nodes.find((node) => node.tooltip === 'none')!
+  expect(plain.ability ?? 0).toBe(0)
+
+  // Another helper's slot rides the wire.
+  show(
+    player,
+    jsx('panel', {
+      ability: { name: 'ability_bebop_hook', player: new Player(5) },
+    }),
+  )
+  expect(
+    sent.at(-1)!.change!.set!.find((node) => node.ability)!.abilityPlayer,
+  ).toBe(5)
+})
+
+test('a sound rides the root as a numbered cue, the last few kept', () => {
+  // Each sound takes the next number, with its cut, and the screen stays.
+  const player = new Player(10)
+  show(player, jsx('panel', { tooltip: 'board' }))
+  uiSound(player, 'UI.ItemDraft.Start')
+  uiSound(player, 'UI.ItemDraft.Pick', { seconds: 0.5 })
+  const root = () =>
+    sent.at(-1)!.change!.set!.find((node) => (node.id ?? '') === '')!
+  const [first, second] = root().cues!
+  expect(first!.sound).toBe('UI.ItemDraft.Start')
+  expect(first!.seconds ?? 0).toBe(0)
+  expect(second!.sound).toBe('UI.ItemDraft.Pick')
+  expect(second!.seconds).toBe(0.5)
+  expect(second!.number).toBe(first!.number! + 1)
+  expect(sent.at(-1)!.change!.reset ?? false).toBe(false)
+  expect(sent.at(-1)!.change!.removed ?? []).toEqual([])
+
+  // Only the last eight ride, the newest last; another player hears none.
+  for (let n = 0; n < 9; n++) uiSound(player, `Cue.${n}`)
+  expect(root().cues!.map((cue) => cue.sound)).toEqual(
+    [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `Cue.${n}`),
+  )
+  show(new Player(11), jsx('panel', {}))
+  expect(root().cues ?? []).toEqual([])
 })
 
 test("a style names the game's faces, edges, paint and motion on the wire", () => {

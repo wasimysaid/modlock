@@ -1,9 +1,15 @@
 // Package panorama holds the renderer that draws mods' interfaces in the
 // player's game. A host whose own interface script receives the screens may
-// compile Drawing from src/draw.ts into that script, and Hud from src/hud.ts
-// to hide the parts of the game's HUD the screens list. A host that draws
-// mods' own layouts installs src/layout.ts, built as an IIFE with the global
-// name Modlock, as scripts/modlock/layout.js, which those layouts include.
+// compile Drawing from src/draw.ts into that script, hiddenParts from
+// src/hud.ts to read the parts of the game's HUD the screens list, and the
+// StockGuard or its finders, hidePanel and restorePanel from src/guard.ts to
+// hide them and give them back, with src/ability-hud.ts, whose AbilityHud
+// listens on the ability bar and, through src/abilities.ts, draws the
+// replaced abilities the screens name on Tab and the bar. A host whose own
+// guard holds the stock HUD holds an AbilityHud too. A host that draws mods'
+// own layouts installs
+// src/layout.ts, built as an IIFE with the global name Modlock, as
+// scripts/modlock/layout.js, which those layouts include.
 // Vendoring this package delivers the source beside the ui protocol it reads.
 // A page may draw the same screens in a browser on browser/dom.ts, the
 // stand-in for game panels, which applies layout style sheets with
@@ -13,10 +19,11 @@ package panorama
 
 import "embed"
 
-// Sources holds the drawing's, the hud's and the layout library's TypeScript
-// source and the drawing's browser stand-in.
+// Sources holds the drawing's, the hud's, the guard's, its ability bar's and
+// display's, the layout library's and its native changes' TypeScript source
+// and the drawing's browser stand-in.
 //
-//go:embed src/draw.ts src/data.ts src/hud.ts src/layout.ts src/native.ts browser/dom.ts browser/sheets.ts browser/panels.css
+//go:embed src/draw.ts src/data.ts src/hud.ts src/guard.ts src/ability-hud.ts src/abilities.ts src/layout.ts src/native.ts browser/dom.ts browser/sheets.ts browser/panels.css
 var Sources embed.FS
 
 // Layout is the renderer's layout, which a client content package installs

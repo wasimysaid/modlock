@@ -123,6 +123,7 @@ add_library(modlock_sdk SHARED
   src/gameinterop/ability_modifier.cc
   src/gameinterop/ability_slots.cc
   src/gameinterop/projectile_impact_hook.cc
+  src/gameinterop/voice_hook.cc
   src/gameinterop/movement_hook.cc
   src/gameinterop/bot_creation.cc
   src/gameinterop/bot_difficulty_definitions.cc
@@ -134,6 +135,7 @@ add_library(modlock_sdk SHARED
   src/gameinterop/connection_tracker.cc
   src/gameinterop/console_variables.cc
   src/gameinterop/engine_server.cc
+  src/gameinterop/ability_owner_guard.cc
   src/gameinterop/entity_abi.cc
   src/gameinterop/entity_dynamics.cc
   src/gameinterop/frame_hook.cc
@@ -151,7 +153,6 @@ add_library(modlock_sdk SHARED
   src/gameinterop/match_clock.cc
   src/gameinterop/native_chat_hook.cc
   src/gameinterop/native_damage.cc
-  src/gameinterop/native_sound.cc
   src/gameinterop/native_trace.cc
   src/gameinterop/native_user_messages.cc
   src/gameinterop/modifier_states.cc
@@ -195,6 +196,7 @@ add_library(modlock_sdk SHARED
   src/wasm/game.cc
   src/wasm/game_combat.cc
   src/wasm/game_effects.cc
+  src/wasm/game_voice.cc
   src/wasm/game_entities.cc
   src/wasm/game_fields.cc
   src/wasm/game_seating.cc
@@ -204,6 +206,7 @@ add_library(modlock_sdk SHARED
   src/wasm/game_match.cc
   src/wasm/call_profile.cc
   src/wasm/console_lines.cc
+  src/wasm/entity_rules.cc
   src/wasm/game_services.cc
   src/wasm/game_services_input.cc
   src/wasm/game_watches.cc
@@ -557,10 +560,15 @@ if(BUILD_TESTING)
   add_executable(combat_events_test tests/combat_events_test.cc)
   target_link_libraries(combat_events_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME combat_events_test COMMAND combat_events_test)
-  add_executable(console_lines_test tests/console_lines_test.cc src/wasm/console_lines.cc)
+  add_executable(console_lines_test tests/console_lines_test.cc src/wasm/console_lines.cc
+    src/wasm/entity_rules.cc)
   target_include_directories(console_lines_test PRIVATE src)
   target_link_libraries(console_lines_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME console_lines_test COMMAND console_lines_test)
+  add_executable(entity_rules_test tests/entity_rules_test.cc src/wasm/entity_rules.cc)
+  target_include_directories(entity_rules_test PRIVATE src)
+  target_link_libraries(entity_rules_test PRIVATE modlock::sdk gtest_main)
+  add_test(NAME entity_rules_test COMMAND entity_rules_test)
   add_executable(console_variables_test tests/console_variables_test.cc)
   target_link_libraries(console_variables_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME console_variables_test COMMAND console_variables_test)
@@ -577,6 +585,10 @@ if(BUILD_TESTING)
   add_executable(gameinterop_transmit_hook_test tests/gameinterop_transmit_hook_test.cc)
   target_link_libraries(gameinterop_transmit_hook_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME gameinterop_transmit_hook_test COMMAND gameinterop_transmit_hook_test)
+
+  add_executable(gameinterop_ability_owner_guard_test tests/gameinterop_ability_owner_guard_test.cc)
+  target_link_libraries(gameinterop_ability_owner_guard_test PRIVATE modlock::sdk gtest_main)
+  add_test(NAME gameinterop_ability_owner_guard_test COMMAND gameinterop_ability_owner_guard_test)
   add_executable(gameinterop_frame_timing_test tests/gameinterop_frame_timing_test.cc)
   target_link_libraries(gameinterop_frame_timing_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME gameinterop_frame_timing_test COMMAND gameinterop_frame_timing_test)
@@ -717,6 +729,10 @@ if(BUILD_TESTING)
   target_include_directories(wasm_hero_restore_test PRIVATE src)
   target_link_libraries(wasm_hero_restore_test PRIVATE modlock::sdk gtest_main)
   add_test(NAME wasm_hero_restore_test COMMAND wasm_hero_restore_test)
+  add_executable(wasm_hero_picks_test tests/wasm_hero_picks_test.cc)
+  target_include_directories(wasm_hero_picks_test PRIVATE src)
+  target_link_libraries(wasm_hero_picks_test PRIVATE modlock::sdk gtest_main)
+  add_test(NAME wasm_hero_picks_test COMMAND wasm_hero_picks_test)
   add_executable(wasm_npc_restore_test tests/wasm_npc_restore_test.cc src/wasm/npc_restore.cc)
   target_include_directories(wasm_npc_restore_test PRIVATE src)
   target_link_libraries(wasm_npc_restore_test PRIVATE modlock::sdk gtest_main)

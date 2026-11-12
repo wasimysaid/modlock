@@ -219,7 +219,7 @@ export class NativeChanges {
       const saved = readSaved(panel)
       for (const [key] of fresh) {
         const entry = (saved[key] ??= {
-          original: read(panel, key),
+          original: guardHid(panel, key) ? null : read(panel, key),
           owners: [],
         })
         entry.owners.push(this.owner)
@@ -230,6 +230,23 @@ export class NativeChanges {
     for (const [key, value] of values) write(panel, key, value)
     return panel
   }
+}
+
+/**
+ * guardMark names the attribute the renderer's stock guard leaves on a panel
+ * it hid; "shown" means the inline collapse on the panel is the guard's.
+ */
+const guardMark = 'modlock_hidden'
+
+/**
+ * guardHid reports whether key is a visibility the stock guard wrote, which
+ * is not the panel's original: the guard gives its own collapse back.
+ */
+function guardHid(panel: NativePanel, key: Key): boolean {
+  return (
+    key === 'style.visibility' &&
+    panel.GetAttributeString(guardMark, '') === 'shown'
+  )
 }
 
 /** top returns the root of the interface panel sits in. */

@@ -24,6 +24,7 @@ interface Panel {
   SetImage(path: string): void
   SetURL(url: string): void
   SetPanelEvent(event: string, handler: () => void): void
+  ClearPanelEvent(event: string): void
   SetAttributeString(name: string, value: string): void
   GetAttributeString(name: string, fallback: string): string
   BLoadLayout(
@@ -71,3 +72,5 @@ declare const $: {
 
 /** PlayUISoundEvent plays one of the game's interface sound events. */
 declare function PlayUISoundEvent(sound: string): number
+/** StopUISoundEvent stops a sound PlayUISoundEvent started. */
+declare function StopUISoundEvent(playing: number): void

@@ -629,6 +629,13 @@ Hyperline publishes each version once, so raise `version` in `mod.json` before
 publishing again. `--notes` says what changed: hyperline.gg shows it on the
 game's page, and the `github` destination uses it for a new release.
 
+`--prerelease` publishes to hyperline.gg for the mod's testers only, with a
+version such as `0.2.0-pre.1`. Every game keeps its release. Each of the mod's
+games gains a Draft copy, such as "Freestyle Prerelease", that plays the
+prerelease, and anyone a tester invites may join it. A later prerelease
+replaces it. Choosing it current on hyperline.gg (`hyperline-mod current SLUG
+VERSION`) makes that same build the release, without publishing again.
+
 After the upload, `modlock publish` says where the release plays. A mod with
 code plays on hyperline.gg's game servers at once, and on players' own PCs once
 a reviewer approves it, unless the creator is trusted, whose releases play
@@ -750,7 +757,9 @@ time to WebAssembly with [scriptc](https://scriptc.dev), which runs it about
 build, and which it downloads the first time. `modlock build --release` builds
 the same way to check the published build before you publish. When scriptc
 cannot compile part of the mod, the build lists each place and the reason, and
-bundles the mod for QuickJS instead.
+bundles the mod for QuickJS instead. `modlock publish` then refuses to publish
+it, so a mod does not ship on QuickJS unnoticed; fix what scriptc reports, or
+pass `--allow-fallback` to publish the QuickJS build.
 
 Before it ships the WebAssembly build, the build plays it in the sandbox beside
 the QuickJS bundle: Start, a player, the world and five seconds of frames, with
@@ -758,7 +767,7 @@ one clock and the same random bytes for both. Each event goes to QuickJS first,
 then to WebAssembly, which gets QuickJS's reply to each equal call. When the two
 builds make different calls or answer an event differently, the build prints
 the first event where they part, with what each build did there, and ships the
-QuickJS bundle. A run of server commands compares as a set, since the order in
+QuickJS bundle, which `modlock publish` refuses in the same way. A run of server commands compares as a set, since the order in
 which a mod sends a group of console variables does not change the game. The
 check builds the QuickJS runtime with the zig that scriptc uses, once per
 version.
@@ -846,28 +855,29 @@ whose `cancel` you call with a colon. In Python, `modlock.after`,
 
 ### Players and heroes
 
-| Call                                                                                            | Effect                                                            |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `players()`                                                                                     | List the connected players and bots.                              |
-| `new Cast({ join, leave, bots })`, `cast.frame`, `members`, `want`, `pawn`                      | Keep one member per human and get them the hero they want.        |
-| `player.pawn()`                                                                                 | Read the hero: health, team, position, aim and stamina.           |
-| `player.chat`, `centerText`, `announce`                                                         | Show text to one player.                                          |
-| `player.selectHero`, `respawn`, `teleport`, `setVelocity`, `freeze`, `kill`                     | Move the hero through the match.                                  |
-| `player.zipline(lane)`                                                                          | Put the hero on the yellow, green, blue or purple lane's zipline. |
-| `player.spectate()`                                                                             | Move the player to the spectators, without a hero.                |
-| `player.watch(target, chase?)`, `freeCamera(position, facing)`, `unwatch()`                     | Watch a hero, chase it or fly freely, and return to the hero.     |
-| `player.moveCamera(options)`, `clearCamera(context?)`                                           | Pull back, widen, offset or aim the camera, as abilities do.      |
-| `player.clearItems`, `giveItem(item, imbue?)`, `restoreStamina`, `setStamina`, `refreshAbility` | Change what the hero carries, imbuing an ability with an item.    |
-| `player.abilities()`, `setAbility`, `replaceAbility`, `giveModifier`, `holdModifier`            | Read or change abilities, their timers and charges, modifiers.    |
-| `player.setting`, `setSetting`, `settingOn(player, key)`, `settingNumber(player, key)`          | Read or change the player's settings.                             |
-| `player.addMetric(name, value, label?)`                                                         | Add to the player's total of a metric.                            |
-| `reportScore(player, board, value, options?)`, `reportMatch(board, places, options?)`           | Report a score or a match's places to a board.                    |
-| `readBoard(board, read?)`                                                                       | Read a page of a board, such as its top five.                     |
-| `player.handoff(text)`, `handedOff()`                                                           | Hand the player's state to the next build, and read it back.      |
-| `player.watchMovement(true)`                                                                    | Add the hero's movement, landings and wall jumps to each frame.   |
-| `playCamera(player, options)`, `cameraPulse`, `cameraShake`                                     | Play curves on the camera; see [Camera moves](#camera-moves).     |
-| `setOrbitCamera(player, enabled)`                                                               | Switch the hero to the hideout's zoom camera and HUD, or back.    |
-| `addBot(options)`, `player.removeBot()`                                                         | Add or remove a bot player.                                       |
+| Call                                                                                                                              | Effect                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `players()`                                                                                                                       | List the connected players and bots.                                  |
+| `new Cast({ join, leave, bots })`, `cast.frame`, `members`, `want`, `pawn`                                                        | Keep one member per human and get them the hero they want.            |
+| `player.pawn()`                                                                                                                   | Read the hero: health, team, position, aim and stamina.               |
+| `player.chat`, `centerText`, `announce`                                                                                           | Show text to one player.                                              |
+| `player.sound(sound, { volume, pitch, listeners })`, `adjustSound(id, volume, pitch)`, `stopSound(id)`                            | Play a sound on the hero, change it while it plays, or stop it.       |
+| `player.selectHero`, `respawn`, `teleport`, `setVelocity`, `freeze`, `kill`                                                       | Move the hero through the match.                                      |
+| `player.zipline(lane)`                                                                                                            | Put the hero on the yellow, green, blue or purple lane's zipline.     |
+| `player.spectate()`                                                                                                               | Move the player to the spectators, without a hero.                    |
+| `player.watch(target, chase?)`, `freeCamera(position, facing)`, `unwatch()`                                                       | Watch a hero, chase it or fly freely, and return to the hero.         |
+| `player.moveCamera(options)`, `clearCamera(context?)`                                                                             | Pull back, widen, offset or aim the camera, as abilities do.          |
+| `player.clearItems`, `giveItem(item, imbue?)`, `buyItem(item, imbue?, source?)`, `restoreStamina`, `setStamina`, `refreshAbility` | Change what the hero carries, imbuing an ability with an item.        |
+| `player.abilities()`, `setAbility`, `replaceAbility`, `trainAbility`, `giveModifier`, `holdModifier`                              | Read, change or train abilities, their timers and charges, modifiers. |
+| `player.setting`, `setSetting`, `settingOn(player, key)`, `settingNumber(player, key)`                                            | Read or change the player's settings.                                 |
+| `player.addMetric(name, value, label?)`                                                                                           | Add to the player's total of a metric.                                |
+| `reportScore(player, board, value, options?)`, `reportMatch(board, places, options?)`                                             | Report a score or a match's places to a board.                        |
+| `readBoard(board, read?)`                                                                                                         | Read a page of a board, such as its top five.                         |
+| `player.handoff(text)`, `handedOff()`                                                                                             | Hand the player's state to the next build, and read it back.          |
+| `player.watchMovement(true)`                                                                                                      | Add the hero's movement, landings and wall jumps to each frame.       |
+| `playCamera(player, options)`, `cameraPulse`, `cameraShake`                                                                       | Play curves on the camera; see [Camera moves](#camera-moves).         |
+| `setOrbitCamera(player, enabled)`                                                                                                 | Switch the hero to the hideout's zoom camera and HUD, or back.        |
+| `addBot(options)`, `player.removeBot()`                                                                                           | Add or remove a bot player.                                           |
 
 `heroes` lists the released heroes by title, each with its game name, such as
 `hero_atlas`, and fixed id. `findHero(typed)` matches what a player typed,
@@ -883,6 +893,31 @@ start untrained; with `keep` the new ability takes the old one's training,
 bought upgrades, cooldown and charges. The game trains and upgrades main
 slots by slot, so a player holds the upgrade key and presses the slot's
 ability key, and training an untrained replacement costs an ability unlock.
+`trainAbility(slot)` does the same from the mod, on whatever ability the hero
+holds in a main slot, through the game's own path: it charges the unlock or
+the points, and returns false, spending nothing, when the game refuses. The
+game's own `upgrade_ability` and `trainorupgradeability` commands look up the
+hero's own ability for a slot, so a mod that claims them answers with
+`trainAbility`.
+`buyItem(item, imbue?, source?)` buys an item through the game's own shop,
+which applies its rules and charges the souls, and returns false when it
+refuses. With `imbue`, the item strengthens whatever ability the hero holds in
+that slot, as `giveItem` does; the check runs before anything is spent. The
+game's `buydependentitem` command looks up the hero's own ability for the slot,
+so a mod that claims it answers with `buyItem`.
+A click on the game's ability bar sends nothing for an ability
+`replaceAbility` gave; `abilityBarPresses(player, (player, slot) => ...)`
+reports each click on a slot's icon or pips, so a mod answers it with
+`trainAbility`. A click the game answers itself, with `upgrade_ability`,
+reaches the mod both ways. Clicks arrive only while the mod's screen holds the
+player's HUD, so a player who left sends none.
+The game's Tab screen and ability bar draw each hero's standard abilities by
+slot, so a replaced one shows as the ability it replaced.
+`abilityDisplay(viewer, [{ player, abilities: [{ name, image, upgrades }] }])`
+shows viewer each row's abilities there instead, in the game's frame and pips
+with its ability window over them, the viewer's own row on the bar too, and
+Modlock gives the game's own back as the player leaves. A row finds its Tab
+row by the player's name, else by the hero's, which a bot's row shows.
 `adjustAbilityPoints(points, unlocks)` gives or takes them, and the hero's
 `abilityPoints` and `abilityUnlocks` read what is left. A hero change or
 `resetHero` restores the hero's own abilities, so reapply a swap then. Use
@@ -938,6 +973,29 @@ from 64 units above it to 1024 below, through solid and player clip. It
 returns nothing when no floor is in reach, when the point is inside a wall, or
 before the world's collision is ready, so `ground(spawn) ?? spawn` keeps the
 point when there is no floor. `above`, `below` and `layers` change the reach.
+
+### Stand a race gate
+
+`RaceGate.stand` stands a checkpoint or finish gate across a lane. The gate is
+a window of thin glowing lines inside a racing checker band that runs round
+its sides and top. It is Tron cyan by default, and a runner reads it at once
+as "go through here". `foot` is the road point under the middle of the
+opening, and `yaw` is the direction a runner passes through, in degrees.
+Precache `raceGateResources` in `onStart`:
+
+```ts
+import { ground, onStart, precache, RaceGate, raceGateResources } from 'modlock'
+
+onStart(() => precache({ resources: raceGateResources }))
+
+const gate = RaceGate.stand({ foot: ground(spot) ?? spot, yaw: 90 })
+gate.remove()
+```
+
+`width` and `height` size the opening, 112 by 144 units by default, rounded to
+whole 8-unit cells. `color` and `faded` color the band's inner and outer
+rings, and `viewer` shows the gate to one player slot only. World text and
+beams ignore alpha, so the outer ring uses a darker shade to look see-through.
 
 ### Time your frames
 
@@ -1049,6 +1107,7 @@ after(30, () => tour?.cancel())
 | `serverCommand(line)`                                    | Run a line at the server console, within [its limits](#console).    |
 | `moveEntity`, `pushEntity`, `emitSound`                  | Move an entity, set or add to its velocity, or play a sound on it.  |
 | `modifierState(entity, state)`, `holdModifierState(...)` | Test a modifier state on an entity, or hold one on it.              |
+| `silenceVoice(concepts)`, `player.silenceVoice(...)`     | Keep every hero, or one, from speaking the named voice concepts.    |
 | `readField`, `writeField`, `entityClass`                 | Read or write any schema field of a live entity, or name its class. |
 | `loadSpot(spot)`, `encodeSpot`, `decodeSpot`             | Place a [spot](#spots) on the running map, or save it.              |
 | `new Dropper(catalog, spot)`                             | Let players build a spot while they play.                           |
@@ -1137,7 +1196,7 @@ class, its base and its fields in `schemas.json`.
 
 ### Entities and inputs
 
-`createEntity` creates any entity the server knows by its designer name, with
+`createEntity` creates an entity the server knows by its designer name, with
 the spawn key values a map would give it and fields written before it spawns.
 `fireInput` sends an entity an input, as a map's output would, and
 `removeEntity` removes one the mod created. The world's end, or the mod's,
@@ -1171,6 +1230,18 @@ pointing at `giveItem` and `replaceAbility`, because one created alone takes the
 server down once it thinks or is removed. `spawnNpc` and `createPickup` build on
 the same call, so `spawnNpc` takes any unit class the server has and refuses a
 `lane` for a class that walks none.
+
+Entities keep to the same [console limits](#console) as `serverCommand`. The
+host refuses to create, spawn or send inputs to `point_servercommand`,
+`point_clientcommand`, `point_broadcastclientcommand`, `point_commentary_node`,
+`logic_script` and `point_prefab`, which run console lines on the server or on
+players' clients, or load scripts and entities no check sees; an entity of one
+of those classes that a map placed takes no input from a mod either. It
+refuses the key values `vscripts`, `precommands`, `postcommands` and any ending
+in `_script_func`, the fields they fill, `m_iszPrivateVScripts`,
+`m_iszPreCommands` and `m_iszPostCommands`, whether written before spawn or
+with `writeField`, and the inputs `AddOutput`, `RunScriptCode`,
+`RunScriptFile` and the `Call*ScriptFunction` inputs on every entity.
 
 `create` in `modlock/entities` types the same call by designer name: it takes
 only that entity's spawn keys, each as the type the entity reads, and returns
@@ -1249,10 +1320,17 @@ They may not reach the engine's controls for:
   settings;
 - the process: crash and minidump commands, debuggers, tools and shutdown;
 - commands that store a line to run later: `alias`, `cmd`, `bind*`, `unbind*`
-  and `execute_command_every_frame`.
+  and `execute_command_every_frame`, and the test script's `test_*`
+  commands, which run the commands they name;
+- entities, past the checks of a mod's own calls: `ent_create`, `ent_fire*`,
+  `ent_call` and `firetarget`, and `give` for a class
+  [`createEntity` refuses](#entities-and-inputs);
+- the script VM: `script_*`.
 
-The server checks every command in a line, after each `;` or newline, and
-returns an error that names the first one refused.
+`toggle`, `incrementvar` and `multvar` set the variable they name, so each is
+refused for a variable that may not be set directly. The server checks every
+command in a line, after each `;` or newline, and returns an error that names
+the first one refused.
 
 `apply(settings)` sets several variables in order and returns the names the
 server refused. `arena` empties the map for a custom mode: the server keeps
@@ -1271,8 +1349,11 @@ apply({ ...arena, citadel_allow_duplicate_heroes: true })
 | --------------------------------------- | -------------------------------------------------------------------------------------- |
 | `show(player, element)`, `hide(player)` | Show a player an interface written in JSX, or remove it.                               |
 | `toast(player, text, seconds?)`         | Show a player a short notice that fades.                                               |
+| `uiSound(player, sound, { seconds? })`  | Play a game sound event to one player once, hero or not; `seconds` cuts it short.      |
 | `hideHud(player, parts)`                | Hide parts of the game's HUD, such as `'topBar'` or `'minimap'`; `[]` restores.        |
 | `freeCursor(player, free)`              | Show the mouse cursor without Tab, so the player can click; `false` returns aiming.    |
+| `abilityBarPresses(player, onPress?)`   | Take clicks on the game's ability bar by slot, for abilities the game cannot train.    |
+| `abilityDisplay(viewer, rows?)`         | Show players' replaced abilities on Tab and the ability bar; no rows restores.         |
 | `cursorFree(player)`                    | Read whether the player's cursor is up now, however it got there.                      |
 | `items`, `item(name)`                   | The shop's items: id, slot, tier, active, imbue and icon. `item` prop shows its card.  |
 | `player.screenEffect(effect, timing?)`  | Play `'black'`, `'killed'`, `'blinded'`, `'darkness'` or `'matchIntro'` over the view. |
@@ -1319,8 +1400,11 @@ Style `panel`, `label`, `image`, `hero`, `button` and `layout` with:
   that the game animates eases to its new value instead of jumping.
 
 Any element takes `hover`, a style laid over its own while the pointer is on
-it, `tooltip`, text the game shows beside it, and `hoverSound`, a game sound
-event such as `'UI.MainMenu.Hover'`. A `button` also takes `sound`, played on
+it, `tooltip`, text the game shows beside it, `item`, an item's class name
+whose shop card shows instead, `ability`, `{ name, player }`, whose game window
+for that ability shows instead of either, in the player's language and with
+the numbers of `player`'s hero, and `hoverSound`, a game sound event such as
+`'UI.MainMenu.Hover'`. A `button` also takes `sound`, played on
 a press, and `disabled`, which stops its presses. An `image` takes `scaling`
 (`'fit'`, `'cover'`, `'stretch'`, `'fitWidth'`, `'fitHeight'`, `'none'`), and
 `<hero hero={15} look="card" />` draws the game's own picture of a hero, in the
@@ -1524,6 +1608,12 @@ Every project has a `mod.json` at its root:
 `citadel/maps`, or `dl_midtown`, which hyperline.gg also plays for a mod
 that asks for no map.
 
+A mod plays a stock Deadlock map, `dl_midtown`, or its own map. Name its own
+map `hl_<name>` and put the compiled map in the project's `maps/hl_<name>.vpk`;
+`build` ships it and `publish` refuses a build without it. Any other name is
+refused: a map only in your game's `citadel/maps` loads for you and for no
+one else.
+
 ### Movement
 
 ```json
@@ -1570,7 +1660,8 @@ with the player and anyone they landed on.
 ```
 
 Each entry changes one stock definition on the server; players' games keep
-their own definitions.
+their own definitions, so tooltips and parts of the HUD show the stock values
+while play uses the changed ones.
 
 | Field        | Value                                                                                                                                                                          |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

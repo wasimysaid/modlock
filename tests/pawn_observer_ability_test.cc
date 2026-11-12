@@ -272,6 +272,140 @@ TEST(PawnObserver, GrantsAnItemOnceAndPreservesTheExistingLoadout) {
   EXPECT_EQ(owned->at(1).subclass_id, 200);
 }
 
+TEST(PawnObserver, TrainsTheHeldAbilityThroughTheGameAndReportsARefusal) {
+  // Observe a pawn whose slot 0 holds an ability the game trains when asked.
+  ItemFixture fixture;
+  PawnObserver observer(fixture.Seams());
+  ASSERT_TRUE(observer.Observe());
+  modlock::gameinterop::TrainFunctions functions{
+      +[](void* pawn, void* ability) {
+        // The game gets the pawn and the held ability itself.
+        auto& fixture = *ItemFixture::current;
+        EXPECT_EQ(pawn, fixture.pawn.data());
+        EXPECT_EQ(ability, fixture.hero.data());
+        ++fixture.trains;
+
+        // It buys the next tier unless it refuses.
+        if (fixture.apply) {
+          const uint32_t packed = 3;
+          std::memcpy(fixture.hero.data() + 0x3c, &packed, sizeof(packed));
+        }
+      }};
+
+  // An item's slot past 3, an empty slot or no game function trains nothing.
+  EXPECT_FALSE(observer.TrainAbility(0, 23, functions));
+  EXPECT_FALSE(observer.TrainAbility(0, 2, functions));
+  EXPECT_FALSE(observer.TrainAbility(0, 0, modlock::gameinterop::TrainFunctions{}));
+  EXPECT_EQ(fixture.trains, 0);
+
+  // The game trains the ability, and the call reports it as read back.
+  const auto trained = observer.TrainAbility(0, 0, functions);
+  ASSERT_TRUE(trained) << trained.error();
+  EXPECT_EQ(trained->upgrade_info, 3u);
+  EXPECT_EQ(trained->handle, HandleOf(3, 9));
+  EXPECT_EQ(fixture.trains, 1);
+
+  // A refusal leaves the upgrades as they were and says so.
+  fixture.apply = false;
+  const auto refused = observer.TrainAbility(0, 0, functions);
+  ASSERT_FALSE(refused);
+  EXPECT_NE(refused.error().find("refused"), std::string::npos);
+  EXPECT_EQ(fixture.trains, 2);
+}
+
+// SellNew is a shop that sells upgrade_new into the pawn's third handle from
+// source 3, or refuses when the fixture does not apply it.
+void* SellNew(void* pawn, const char* name, uint32_t flags, uint8_t source) {
+  // Check the purchase's arguments and count it.
+  auto& fixture = *ItemFixture::current;
+  EXPECT_EQ(pawn, fixture.pawn.data());
+  EXPECT_STREQ(name, "upgrade_new");
+  EXPECT_EQ(flags, 7u);
+  EXPECT_EQ(source, 3);
+  ++fixture.buys;
+  if (!fixture.apply) {
+    return nullptr;
+  }
+
+  // Append the sold item.
+  fixture.InitAbility(fixture.granted_item, 201, 4);
+  fixture.handles[2] = HandleOf(5, 11);
+  fixture.SetCount(3);
+  return fixture.granted_item.data();
+}
+
+TEST(PawnObserver, BuysThroughTheShopAndImbuesTheHeldAbility) {
+  // Observe a pawn with room for a bought item, whose items imbue.
+  ItemFixture fixture;
+  fixture.connection.image.SetIdentity(5, fixture.granted_item.data(), 11, 0);
+  PawnObserver observer(fixture.Seams());
+  ASSERT_TRUE(observer.Observe());
+  modlock::gameinterop::AbilityDefinitions definitions(ItemFixture::Lookup);
+  const modlock::gameinterop::BuyFunctions shop{&SellNew};
+  const uint32_t effects = 1;
+  std::memcpy(fixture.definition.data() + 0x20, &effects, sizeof(effects));
+  const modlock::gameinterop::ImbueFunctions imbue{
+      +[](void*, void*) { return ItemFixture::current->accept; },
+      +[](void* item, void* ability) {
+        // The bought item imbues the held ability.
+        auto& fixture = *ItemFixture::current;
+        EXPECT_EQ(item, fixture.granted_item.data());
+        EXPECT_EQ(ability, fixture.hero.data());
+        ++fixture.imbues;
+      },
+      0x20};
+
+  // Unknown and non-item subclasses buy nothing.
+  EXPECT_FALSE(observer.BuyItem(0, 999, {}, 3, definitions, shop, nullptr));
+  EXPECT_FALSE(observer.BuyItem(0, 100, {}, 3, definitions, shop, nullptr));
+
+  // A refusal by the shop says so.
+  fixture.apply = false;
+  const auto refused = observer.BuyItem(0, 201, {}, 3, definitions, shop, nullptr);
+  ASSERT_FALSE(refused);
+  EXPECT_NE(refused.error().find("refused"), std::string::npos) << refused.error();
+  EXPECT_EQ(fixture.buys, 1);
+
+  // A sale the hero does not own fails.
+  const modlock::gameinterop::BuyFunctions lost{
+      +[](void*, const char*, uint32_t, uint8_t) -> void* {
+        return ItemFixture::current->granted_item.data();
+      }};
+  fixture.apply = true;
+  const auto missing = observer.BuyItem(0, 201, {}, 3, definitions, lost, nullptr);
+  ASSERT_FALSE(missing);
+  EXPECT_NE(missing.error().find("does not own"), std::string::npos) << missing.error();
+
+  // An imbue the ability refuses, into an empty slot, or without the game's
+  // imbue spends nothing. Off Windows the definition read fails, which
+  // refuses every imbue the same way.
+  fixture.accept = false;
+  EXPECT_FALSE(observer.BuyItem(0, 201, 0, 3, definitions, shop, &imbue));
+  fixture.accept = true;
+  EXPECT_FALSE(observer.BuyItem(0, 201, 2, 3, definitions, shop, &imbue));
+  EXPECT_FALSE(observer.BuyItem(0, 201, 0, 3, definitions, shop, nullptr));
+  EXPECT_EQ(fixture.buys, 1);
+  EXPECT_EQ(fixture.imbues, 0);
+
+#if defined(_WIN32)
+  // A sale imbues the held ability once and returns the bought item.
+  const auto imbued = observer.BuyItem(0, 201, 0, 3, definitions, shop, &imbue);
+  ASSERT_TRUE(imbued) << imbued.error();
+  EXPECT_EQ(imbued->handle, HandleOf(5, 11));
+  EXPECT_EQ(fixture.buys, 2);
+  EXPECT_EQ(fixture.imbues, 1);
+  fixture.SetCount(2);
+#endif
+
+  // A sale without a target imbues nothing and returns the bought item.
+  const int buys = fixture.buys;
+  const auto bought = observer.BuyItem(0, 201, {}, 3, definitions, shop, nullptr);
+  ASSERT_TRUE(bought) << bought.error();
+  EXPECT_EQ(bought->handle, HandleOf(5, 11));
+  EXPECT_EQ(bought->slot, 4);
+  EXPECT_EQ(fixture.buys, buys + 1);
+}
+
 TEST(PawnObserver, ReconcilesItemsIdempotentlyWithoutRemovingHeroAbilities) {
   // Observe the fixture's loadout.
   ItemFixture fixture;

@@ -53,7 +53,14 @@
 //
 // hideHud hides parts of the game's own HUD from a player, such as their
 // health bar or the notice for each boon, until the mod lists them no more,
-// hides the player's interface, or stops.
+// hides the player's interface, or stops. Modlock gives them back on its own
+// when the player leaves, by the menu, to the hideout or with a server that
+// goes away, so a mod has nothing to clean up.
+//
+// uiSound plays one of the game's sound events, such as
+// 'UI.ItemDraft.Start', in one player's game alone, once, with or without a
+// hero on the map; { seconds } cuts it after that long. A player who leaves
+// hears what was playing stop.
 //
 // sheet adds a style sheet from the mod's content addon to every interface
 // the mod shows, such as sheet('hud.css') for content/styles/hud.css, and an
@@ -68,8 +75,10 @@
 
 import { itemId } from './item-id.js'
 import {
+  type AbilityRow as WireAbilityRow,
   Align,
   type Change,
+  type Cue,
   type Cycle as WireCycle,
   Decoration,
   Easing,
@@ -93,8 +102,10 @@ import {
   UiRequest,
   Weight,
 } from '../../src/wasm/ui/ui.pb.js'
+import { heroes } from './heroes.js'
 import { type Player, readField, type Wheel } from './host.gen.js'
 import { call } from './host.js'
+import { players } from './players.js'
 
 /**
  * Length is a size: pixels, a percentage of the parent, 'fit' to size to the
@@ -273,8 +284,11 @@ export interface Style {
  * the crosshair, 'souls' the souls and level readout, 'minimap' the minimap
  * with its hints and district name, 'abilities' the ability and active item
  * bar, 'status' the game's mark in the top-left corner, 'stats' the weapon,
- * spirit and vitality stats at the lower left. Whatever a part does not name
- * stays, such as the crosshair and chat.
+ * spirit and vitality stats at the lower left, 'heroPicker' the screen a
+ * player without a hero picks one on, 'brokerCountdown' the countdown in the
+ * Broker's window, and 'all' the whole HUD but the mods' own interfaces and
+ * the game's tooltips, for a screen that takes the player's whole view.
+ * Whatever a part does not name stays, such as the crosshair and chat.
  */
 export type HudPart =
   | 'levelUp'
@@ -286,6 +300,9 @@ export type HudPart =
   | 'abilities'
   | 'status'
   | 'stats'
+  | 'heroPicker'
+  | 'brokerCountdown'
+  | 'all'
 
 /** Child is anything an element may hold. Text becomes a label. */
 export type Child =
@@ -331,6 +348,7 @@ export interface Props {
   readonly hover?: Style
   readonly tooltip?: string
   readonly item?: string
+  readonly ability?: AbilityTip
   readonly hoverSound?: string
   readonly children?: Child
   readonly src?: string
@@ -364,8 +382,9 @@ export interface Props {
  * ElementProps are the props every drawn element takes. hover is the style
  * drawn over style while the pointer is over the element; tooltip is the text
  * the game's tooltip shows then, item names an item by class name, such as
- * 'upgrade_ability_power_shard', whose shop card shows instead, and
- * hoverSound is the game's sound event played as the pointer enters, such as
+ * 'upgrade_ability_power_shard', whose shop card shows instead, ability names
+ * an ability whose window shows instead of either, and hoverSound is the
+ * game's sound event played as the pointer enters, such as
  * 'UI.MainMenu.Hover'. An element with any of them takes the pointer, so the
  * game behind it does not.
  */
@@ -376,6 +395,7 @@ export interface ElementProps {
   hover?: Style
   tooltip?: string
   item?: string
+  ability?: AbilityTip
   hoverSound?: string
   /** enter is the style the element's panel starts from when it first shows. */
   enter?: Style
@@ -383,6 +403,17 @@ export interface ElementProps {
   exit?: Style
   /** cycle swings the element to another style and back while it shows. */
   cycle?: Cycle
+}
+
+/**
+ * AbilityTip is the game's own window for an ability, in the player's
+ * language: name is the ability's class name, such as 'ability_bebop_hook',
+ * and player is whose hero the window reads its numbers from, a hero that
+ * stands on the map, such as a bot that plays it.
+ */
+export interface AbilityTip {
+  readonly name: string
+  readonly player: Player
 }
 
 /**
@@ -619,6 +650,98 @@ export function freeCursor(player: Player, free: boolean): boolean {
   return draw(player)
 }
 
+/** AbilityBarHandler takes a click on the ability in slot, 0 to 3. */
+export type AbilityBarHandler = (player: Player, slot: number) => void
+
+/**
+ * abilityBarPresses calls onPress with the slot, 0 to 3, each time player
+ * clicks the icon or upgrade pips of an ability on the game's own ability bar,
+ * as the game does when it trains one with Tab held; without onPress the
+ * clicks stop reaching the mod. The game answers a click from the hero's own
+ * abilities, and sends nothing for an ability replaceAbility gave, so a mod
+ * that replaces abilities answers here, with trainAbility. A click the game
+ * answers itself, with upgrade_ability, reaches the mod both ways. Clicks
+ * reach the mod only while its screen holds the player's HUD: a player who
+ * left, or whose session ended, sends none.
+ */
+export function abilityBarPresses(
+  player: Player,
+  onPress?: AbilityBarHandler,
+): boolean {
+  views.set(player.slot, {
+    ...view(player),
+    bar: onPress ? { handler: onPress } : undefined,
+  })
+  return draw(player)
+}
+
+/** ShownAbility is the ability abilityDisplay shows in one slot. */
+export interface ShownAbility {
+  /** name is the ability's class name, whose window the game shows over it. */
+  readonly name: string
+  /** image is its picture, a path in the game's content as an image's src. */
+  readonly image: string
+  /** upgrades holds its bought tiers as Ability.upgrades: bit 0 unlocks it. */
+  readonly upgrades?: number
+}
+
+/** AbilityRow is the four abilities, in slot order, shown for one player. */
+export interface AbilityRow {
+  readonly player: Player
+  /** abilities holds slots 0 to 3; an undefined slot shows the game's own. */
+  readonly abilities: readonly (ShownAbility | undefined)[]
+}
+
+/**
+ * abilityDisplay shows viewer each row's abilities in place of the ones the
+ * game shows for that player's hero: on the player's row of the game's Tab
+ * screen, and for viewer's own row on viewer's ability bar too, in the game's
+ * frame, ring and pips, with the game's ability window over each. The game
+ * draws these from the hero's standard abilities, so one replaceAbility gave
+ * shows as the ability it replaced. Without rows the game's own come back,
+ * as they do when viewer leaves or the session ends. Rows match the Tab
+ * screen's by the player's name and else by the hero's, which a bot's row
+ * shows, so each row's player should have a hero.
+ */
+export function abilityDisplay(
+  viewer: Player,
+  rows: readonly AbilityRow[] = [],
+): boolean {
+  views.set(viewer.slot, { ...view(viewer), display: rows.slice(0, 64) })
+  return draw(viewer)
+}
+
+/**
+ * displayRows puts rows on the wire for viewer, with each player's name and
+ * hero as the Tab screen shows them now.
+ */
+function displayRows(
+  viewer: Player,
+  rows: readonly AbilityRow[],
+): WireAbilityRow[] {
+  // Read the names once, and each hero's class from its id.
+  if (rows.length === 0) return []
+  const names = new Map(players().map((c) => [c.player.slot, c.name]))
+  return rows.map((row) => {
+    const hero = row.player.pawn()?.hero
+    return {
+      player: row.player.slot,
+      // A Steam name is at most 32 characters, within the host's 128 bytes.
+      name: (names.get(row.player.slot) ?? '').slice(0, 32),
+      hero: heroes.find((each) => each.id === hero)?.name ?? '',
+      own: row.player.slot === viewer.slot,
+      abilities: row.abilities.slice(0, 4).map((shown) => ({
+        ability: shown?.name ? itemId(shown.name) : 0,
+        image: shown?.image ?? '',
+        upgrades: shown?.upgrades ?? 0,
+      })),
+    }
+  })
+}
+
+/** abilityBarNode matches the node of a click on the game's ability bar. */
+const abilityBarNode = /^ability:([0-3])$/
+
 /**
  * cursorFree reports whether player's mouse cursor is up now, whether the mod
  * freed it with freeCursor or the player did with the game's own keys. It is
@@ -718,8 +841,35 @@ export function toast(player: Player, text: string, seconds = 4): boolean {
   return draw(player)
 }
 
+/**
+ * uiSound plays the game's sound event sound, such as 'UI.ItemDraft.Start', in
+ * player's game alone, once; seconds cuts it after that long, keeping only its
+ * start. It plays with the next screen the player reads, and not at all if
+ * the player reads it only after the mod's next few sounds.
+ */
+export function uiSound(
+  player: Player,
+  sound: string,
+  options: { readonly seconds?: number } = {},
+): boolean {
+  const current = view(player)
+  const cue = { number: nextCue++, sound, seconds: options.seconds ?? 0 }
+  views.set(player.slot, {
+    ...current,
+    cues: [...current.cues, cue].slice(-maxCues),
+  })
+  return draw(player)
+}
+
 /** press runs the handler of the button the player pressed. */
 export function press(player: Player, node: string): void {
+  // A click on the game's ability bar names its slot, which no button's id
+  // does.
+  const bar = abilityBarNode.exec(node)
+  if (bar) {
+    views.get(player.slot)?.bar?.handler(player, Number(bar[1]))
+    return
+  }
   const pressed = screens.get(player.slot)?.presses.get(node)
   if (pressed) {
     pressed.handler(player)
@@ -768,6 +918,12 @@ interface View {
   readonly asks: number
   /** routes maps each route's name to its value as JSON. */
   readonly routes: ReadonlyMap<string, string>
+  /** cues are the last sounds played, which the renderer plays once each. */
+  readonly cues: readonly Cue[]
+  /** bar takes clicks on the game's ability bar, while the mod asks for them. */
+  readonly bar: { readonly handler: AbilityBarHandler } | undefined
+  /** display is the abilities shown on Tab's rows and the ability bar. */
+  readonly display: readonly AbilityRow[]
   notices: readonly Notice[]
 }
 
@@ -786,6 +942,15 @@ let now = 0
 
 /** nextNotice numbers the next notice, which keys it in the stack. */
 let nextNotice = 0
+
+/** nextCue numbers the next sound, so the renderer plays each once. */
+let nextCue = 1
+
+/**
+ * maxCues is how many sounds the root keeps, so a player whose screens come
+ * slower than the mod plays sounds misses none of the last few.
+ */
+const maxCues = 8
 
 /** maxNotices bounds the stack; a newer notice pushes out the oldest. */
 const maxNotices = 4
@@ -807,6 +972,9 @@ function view(player: Player): View {
       cursor: false,
       asks: 0,
       routes: new Map(),
+      cues: [],
+      bar: undefined,
+      display: [],
       notices: [],
     }
   )
@@ -822,6 +990,7 @@ function draw(player: Player): boolean {
   ]
   const previous = screens.get(player.slot)
   const hud = current.hud.map((part) => hudParts[part])
+  const display = displayRows(player, current.display)
   const next = render(
     previous,
     root,
@@ -829,6 +998,9 @@ function draw(player: Player): boolean {
     current.cursor,
     current.asks,
     current.routes,
+    current.cues,
+    current.bar !== undefined,
+    display,
   )
   const change = diff(previous, next)
 
@@ -842,6 +1014,9 @@ function draw(player: Player): boolean {
       current.cursor,
       current.asks,
       current.routes,
+      current.cues,
+      current.bar !== undefined,
+      display,
     )
     if (!send(player.slot, diff(undefined, whole)!)) {
       screens.delete(player.slot)
@@ -935,10 +1110,13 @@ function render(
   cursor: boolean,
   asks: number,
   routes: ReadonlyMap<string, string>,
+  cues: readonly Cue[],
+  bar: boolean,
+  display: readonly WireAbilityRow[],
 ): Screen {
   // The root is the full-screen panel the elements hang from, and it lists
-  // the parts of the game's HUD to hide, whether the cursor is free and the
-  // mod's sheets.
+  // the parts of the game's HUD to hide, whether the cursor is free, the
+  // mod's sheets and its last sounds.
   const layout = new Layout(previous)
   layout.add({
     id: '',
@@ -948,6 +1126,9 @@ function render(
     freeCursor: cursor,
     freeCursorAsks: asks,
     sheets: [...sheets],
+    cues: [...cues],
+    abilityBarPresses: bar,
+    abilityDisplay: [...display],
   })
 
   // A route's id holds a colon, which no element's id does.
@@ -1043,6 +1224,8 @@ function place(layout: Layout, child: Child, at: string): string[] {
     hover: wireStyle(props.hover),
     tooltip: props.tooltip,
     item: props.item ? itemId(props.item) : undefined,
+    ability: props.ability?.name ? itemId(props.ability.name) : undefined,
+    abilityPlayer: props.ability?.name ? props.ability.player.slot : undefined,
     hoverSound: props.hoverSound,
     enter: wireStyle(props.enter),
     exit: wireStyle(props.exit),
@@ -1263,6 +1446,9 @@ const hudParts = {
   abilities: WireHudPart.ABILITIES,
   status: WireHudPart.STATUS,
   stats: WireHudPart.STATS,
+  heroPicker: WireHudPart.HERO_PICKER,
+  brokerCountdown: WireHudPart.BROKER_COUNTDOWN,
+  all: WireHudPart.ALL,
 } as const
 
 /** faces maps each typeface to its wire value. */

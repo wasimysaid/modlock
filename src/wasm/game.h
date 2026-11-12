@@ -34,15 +34,16 @@
 #include "modlock/gameinterop/match_clock.h"
 #include "modlock/gameinterop/movement_hook.h"
 #include "modlock/gameinterop/native_damage.h"
-#include "modlock/gameinterop/native_sound.h"
 #include "modlock/gameinterop/native_user_messages.h"
 #include "modlock/gameinterop/pawn_observer.h"
 #include "modlock/gameinterop/projectile_impact_hook.h"
 #include "modlock/gameinterop/transmit_hook.h"
+#include "modlock/gameinterop/voice_hook.h"
 #include "modlock/gameinterop/world_entities.h"
 #include "modlock/render/world_effect_game_factory.h"
 #include "modlock/render/world_text_game_factory.h"
 #include "src/wasm/wasm.pb.h"
+#include "wasm/hero_picks.h"
 #include "wasm/hero_restore.h"
 #include "wasm/host_service.gen.h"
 #include "wasm/input_changes.h"
@@ -118,6 +119,8 @@ class GameServices {
   std::expected<const gameinterop::AbilityDefinitions*, std::string> Abilities();
   std::expected<const gameinterop::ItemFunctions*, std::string> Items();
   std::expected<const gameinterop::ImbueFunctions*, std::string> Imbues();
+  std::expected<const gameinterop::TrainFunctions*, std::string> Training();
+  std::expected<const gameinterop::BuyFunctions*, std::string> Shop();
   std::expected<const gameinterop::AbilitySlots*, std::string> Slots();
   std::expected<gameinterop::CreateAbility, std::string> CreateAbility();
   std::expected<gameinterop::RespawnPawn, std::string> Respawn();
@@ -134,7 +137,6 @@ class GameServices {
   std::expected<const gameinterop::NativeDamage*, std::string> Damage();
   std::expected<gameinterop::ModifyCurrency, std::string> Currency();
   std::expected<gameinterop::RequiredSouls, std::string> RequiredSouls();
-  std::expected<const gameinterop::NativeSound*, std::string> Sound();
   std::expected<const gameinterop::GamePause*, std::string> Pause();
   std::expected<gameinterop::MatchClock*, std::string> Clock();
   std::expected<gameinterop::KothRules*, std::string> Rift();
@@ -155,6 +157,17 @@ class GameServices {
 
   // Filter applies every mod's presses, remaps and blocks to one player's input.
   uint64_t Filter(gameinterop::AbilityInputHook::Input& input);
+
+  // Silenced resolves the named voice concepts, caching each value. It
+  // returns those it knows and, in error, the names it does not.
+  std::pair<std::set<int32_t>, std::string> Silenced(
+      const google::protobuf::RepeatedPtrField<std::string>& names);
+
+  // Voice installs the shared voice hook on first use.
+  std::expected<void, std::string> Voice();
+
+  // Speaks reports whether no mod silences concept_value for speaker.
+  bool Speaks(void* speaker, int32_t concept_value);
 
   // Projectiles installs the shared projectile impact hook once a world has
   // loaded, or marks it wanted until then.
@@ -219,6 +232,8 @@ class GameServices {
   std::optional<gameinterop::AbilityDefinitions> abilities_;
   std::optional<gameinterop::ItemFunctions> items_;
   std::optional<gameinterop::ImbueFunctions> imbues_;
+  std::optional<gameinterop::TrainFunctions> training_;
+  std::optional<gameinterop::BuyFunctions> shop_;
   std::optional<gameinterop::AbilitySlots> slots_;
   gameinterop::CreateAbility create_ability_ = nullptr;
   gameinterop::RespawnPawn respawn_ = nullptr;
@@ -238,7 +253,6 @@ class GameServices {
   std::optional<gameinterop::NativeDamage> damage_;
   gameinterop::ModifyCurrency currency_ = nullptr;
   gameinterop::RequiredSouls required_souls_ = nullptr;
-  std::optional<gameinterop::NativeSound> sound_;
   std::optional<gameinterop::GamePause> pause_;
   std::optional<gameinterop::MatchClock> clock_;
   std::optional<gameinterop::KothRules> rift_;
@@ -254,6 +268,10 @@ class GameServices {
   // held_ is each player's held buttons before blocking, for blocked edges.
   std::array<uint64_t, gameinterop::kMaxPlayerSlots> held_{};
   std::optional<gameinterop::ProjectileImpactHook> impacts_;
+  // voice_ drops the voice lines mods silence, installed the first time one
+  // does; voice_concepts_ caches each concept name's value.
+  std::optional<gameinterop::VoiceHook> voice_;
+  std::map<std::string, int32_t, std::less<>> voice_concepts_;
   bool impacts_wanted_ = false;
   // transmit_ filters what each player's client receives once a mod hides
   // an object from someone.
@@ -389,6 +407,11 @@ class Game : public HostService {
   // line. Seating is the host's, so it drops the team commands.
   bool FreeForAllCommand(std::string_view line) const;
 
+  // ClientCommand notes a console command a player sent the game that the
+  // host follows: a selecthero pick from the game's Change Hero, which
+  // SelectHero leaves to land.
+  void ClientCommand(int32_t slot, std::string_view line);
+
   // Moving reports whether the mod watches any player's movement.
   bool Moving() const { return !movers_.empty(); }
 
@@ -459,6 +482,9 @@ class Game : public HostService {
       const players::PlayerRequest& request) override;
   std::expected<void, std::string> SetAbility(const abilities::AbilityOptions& request) override;
   std::expected<void, std::string> GiveItem(const abilities::GiveItemRequest& request) override;
+  std::expected<void, std::string> TrainAbility(
+      const abilities::TrainAbilityRequest& request) override;
+  std::expected<void, std::string> BuyItem(const abilities::BuyItemRequest& request) override;
   std::expected<abilities::HeroBuildResponse, std::string> HeroBuild(
       const abilities::HeroBuildRequest& request) override;
   std::expected<void, std::string> ReplaceAbility(
@@ -479,12 +505,17 @@ class Game : public HostService {
       const players::StartingSoulsRequest& request) override;
   std::expected<void, std::string> ResetHero(const players::ResetHeroRequest& request) override;
   std::expected<void, std::string> Heal(const players::HealRequest& request) override;
-  std::expected<void, std::string> Sound(const effects::SoundRequest& request) override;
+  std::expected<effects::SoundResponse, std::string> Sound(
+      const effects::SoundRequest& request) override;
   std::expected<void, std::string> RestoreHero(const players::RestoreHeroRequest& request) override;
   std::expected<void, std::string> ScreenEffect(
       const effects::ScreenEffectRequest& request) override;
   std::expected<void, std::string> ClearScreenEffect(
       const effects::ClearScreenEffectRequest& request) override;
+  std::expected<void, std::string> SilenceVoice(
+      const effects::SilenceVoiceRequest& request) override;
+  std::expected<void, std::string> SilencePlayerVoice(
+      const effects::SilencePlayerVoiceRequest& request) override;
   std::expected<fields::FieldResponse, std::string> ReadField(
       const fields::ReadFieldRequest& request) override;
   std::expected<void, std::string> WriteField(const fields::WriteFieldRequest& request) override;
@@ -580,7 +611,10 @@ class Game : public HostService {
   std::expected<void, std::string> StartRift(const wasm::StartRiftRequest& request) override;
   std::expected<void, std::string> MoveEntity(const entities::MoveEntityRequest& request) override;
   std::expected<void, std::string> PushEntity(const entities::PushEntityRequest& request) override;
-  std::expected<void, std::string> EmitSound(const effects::EmitSoundRequest& request) override;
+  std::expected<effects::SoundResponse, std::string> EmitSound(
+      const effects::EmitSoundRequest& request) override;
+  std::expected<void, std::string> AdjustSound(const effects::AdjustSoundRequest& request) override;
+  std::expected<void, std::string> StopSound(const effects::StopSoundRequest& request) override;
   std::expected<void, std::string> Kill(const players::PlayerRequest& request) override;
   std::expected<void, std::string> SetVelocity(
       const movement::SetVelocityRequest& request) override;
@@ -622,6 +656,15 @@ class Game : public HostService {
 
   // ScreenOwner returns the entity index a screen effect for slot belongs to.
   std::expected<int32_t, std::string> ScreenOwner(int32_t slot);
+
+  // HumanSlots returns the slot bits of the connected human players, whose
+  // clients can hear a sound.
+  static uint64_t HumanSlots();
+
+  // PlaySound starts a sound on the source entity index, shaped and
+  // addressed by options.
+  std::expected<effects::SoundResponse, std::string> PlaySound(
+      const std::string& sound, int32_t source, const effects::SoundOptions& options);
 
   // SetPaused pauses or resumes the game.
   std::expected<void, std::string> SetPaused(bool paused);
@@ -715,6 +758,10 @@ class Game : public HostService {
   // and restores the stock team relations.
   void ReleaseFreeForAll();
 
+  // Silence installs the voice hook while the mod silences any concept, then
+  // reports the concept names the game did not know, from unknown.
+  std::expected<void, std::string> Silence(const std::string& unknown);
+
   // RenewModifier gives slot's living hero the held modifier when it lacks
   // it. A dead or absent hero waits for its return.
   std::expected<void, std::string> RenewModifier(int32_t slot, const std::string& key);
@@ -807,6 +854,8 @@ class Game : public HostService {
   // handle, until another camera call or Unwatch. A player watching a hero
   // inside an apart game receives that game's heroes.
   std::map<int32_t, uint32_t> watched_;
+  // picks_ holds each player's own Change Hero pick until it lands.
+  HeroPicks picks_;
   // fog_ is the world's fog controller, which the fog objects need; it is
   // created with the first and removed after the objects.
   std::unique_ptr<render::WorldEffect> fog_;
@@ -861,6 +910,10 @@ class Game : public HostService {
   std::unique_ptr<gameinterop::AbilityChargeLimit> charge_limit_;
   // input_ is the mod's blocks, presses, remap and watched buttons.
   InputChanges input_;
+  // silenced_ is the voice concepts the mod keeps every hero from speaking,
+  // and silenced_players_ those it keeps from one player's hero, by slot.
+  std::set<int32_t> silenced_;
+  std::map<int32_t, std::set<int32_t>> silenced_players_;
   // projectiles_ is the mod's projectile watch. projectiles_seen_ holds the
   // watched projectiles of the last frame, and launches_ queues the new ones
   // for the mod.

@@ -93,8 +93,11 @@ an id that finds nothing changes nothing and returns null, so a layout may pass
 `FindChildTraverse` results straight in.
 
 The first owner to change a property saves the panel's current value on the
-panel itself. Every owner restores that one original: the renderer's `hideHud`,
-two instances of a layout during a reload, and the groups of any layout.
+panel itself. Every owner restores that one original: two instances of a
+layout during a reload, and the groups of any layout. The renderer's `hideHud`
+is upstream's stock guard, which hides by a panel's `visible` and its own
+mark; a visibility the guard wrote is never saved as a panel's original, so
+prefer `hideHud` for the parts it names and `Modlock.native` for the rest.
 Changing a property again keeps the first original, so a layout may re-apply
 its changes on every sweep. A panel the game rebuilds is a new panel with its
 own original. `release()` hands back an owner's changes. A property returns to

@@ -1,7 +1,7 @@
 import type { JsonObject } from '@aptre/protobuf-es-lite'
 import { beforeEach, expect, test } from 'bun:test'
 
-import { Screen } from '../../src/wasm/ui/ui.pb.js'
+import { HudPart, Screen } from '../../src/wasm/ui/ui.pb.js'
 import { Bridge } from './bridge.js'
 import {
   AddonLayouts,
@@ -9,10 +9,25 @@ import {
   type InputValue,
   inputCommand,
   layoutDataChanged,
+  pressCommand,
 } from './draw.js'
 import {
+  ALL_MARK,
+  CONNECTED_TO_HIDEOUT,
+  HIDDEN_MARK,
+  HudParts,
+  LEASE_SECONDS,
+  StockGuard,
+  WALK_SECONDS,
+  BAR_GATE,
+  SAME_CLICK_SECONDS,
+  type GuardPanel,
+} from './guard.js'
+import { DISPLAY_COVER, DISPLAY_IMAGE, DRAWN_MARK } from './abilities.js'
+import {
+  abilityBarMods,
+  abilityRows,
   Cursor,
-  Hud,
   cursorAsks,
   cursorFreed,
   heroInHud,
@@ -222,6 +237,9 @@ class FakePanel {
   SetPanelEvent(event: string, handler: () => void) {
     this.events.set(event, handler)
   }
+  ClearPanelEvent(event: string) {
+    this.events.delete(event)
+  }
   SetAttributeString(name: string, value: string) {
     this.attributes.set(name, value)
   }
@@ -306,11 +324,14 @@ beforeEach(() => {
         return { x: 200, y: 0 }
       },
       CreatePanel(
-        type: string,
-        parent: FakePanel,
-        id: string,
-        properties?: Record<string, string>,
+        ...args: [string, FakePanel, string, Record<string, string>?]
       ) {
+        // The game's $.CreatePanel throws on a properties argument that is
+        // not an object.
+        const [type, parent, id, properties] = args
+        if (args.length > 3 && !properties)
+          throw new Error('CreatePanel() properties argument is not an object')
+
         // Attach the panel to its parent.
         const panel = new FakePanel(type, id, properties)
         panel.parent = parent
@@ -721,6 +742,152 @@ test("draws the game's faces, styles, motion, hover and hero pictures", () => {
   ] as unknown as string[][])
 })
 
+test("opens the game's ability window over a node and closes it", () => {
+  // A plain panel with an ability takes the pointer, and its window wins over
+  // its tooltip and its item's card, with the numbers of the slot's hero.
+  const root = new FakePanel('Panel', 'ModlockUi')
+  const drawing = new Drawing($, root, () => {})
+  const cell = (extra: JsonObject = {}): JsonObject => ({
+    id: 'cell',
+    tooltip: 'Hook',
+    item: 630839635,
+    ability: 1234,
+    abilityPlayer: 0,
+    ...extra,
+  })
+  const tree = (...nodes: JsonObject[]) =>
+    screen(
+      { id: '', children: nodes.map((node) => node.id as string) },
+      ...nodes,
+    )
+  drawing.draw(tree({ id: 'cell', ability: 1234 }))
+  const panel = root.children[0]!.children[0]!
+  expect(panel.hittest).toBe(true)
+  drawing.draw(tree(cell()))
+  panel.events.get('onmouseover')!()
+  panel.events.get('onmouseout')!()
+  expect(dispatched).toEqual([
+    ['CitadelShowAbilityDetailsTooltip', panel, 1234, 0],
+    ['CitadelHideAbilityDetailsTooltip', panel],
+  ] as unknown as string[][])
+
+  // Another hero's numbers, or another ability, open the window anew under
+  // the pointer.
+  dispatched.length = 0
+  panel.events.get('onmouseover')!()
+  drawing.draw(tree(cell({ abilityPlayer: 3 })))
+  expect(root.children[0]!.children[0]).toBe(panel)
+  drawing.draw(tree(cell({ abilityPlayer: 3, ability: 5678 })))
+  drawing.draw(tree(cell({ abilityPlayer: 3, ability: 5678 })))
+  expect(dispatched).toEqual([
+    ['CitadelShowAbilityDetailsTooltip', panel, 1234, 0],
+    ['CitadelHideAbilityDetailsTooltip', panel],
+    ['CitadelShowAbilityDetailsTooltip', panel, 1234, 3],
+    ['CitadelHideAbilityDetailsTooltip', panel],
+    ['CitadelShowAbilityDetailsTooltip', panel, 5678, 3],
+  ] as unknown as string[][])
+
+  // Removing the node closes its window.
+  dispatched.length = 0
+  drawing.draw(tree({ id: 'other' }))
+  expect(dispatched).toEqual([
+    ['CitadelHideAbilityDetailsTooltip', panel],
+  ] as unknown as string[][])
+
+  // Leaving the game closes every window still open.
+  const before = [...root.children[0]!.children]
+  drawing.draw(tree(cell()))
+  const again = root.children[0]!.children.find(
+    (each) => !before.includes(each),
+  )!
+  again.events.get('onmouseover')!()
+  dispatched.length = 0
+  drawing.release()
+  drawing.release()
+  expect(dispatched).toEqual([
+    ['CitadelHideAbilityDetailsTooltip', again],
+  ] as unknown as string[][])
+})
+
+test('plays each cue once, cuts it on time and stops it as the player leaves', () => {
+  // Play through a fake game that numbers each sound it starts.
+  const sounds: string[] = []
+  let started = 0
+  const drawing = new Drawing(
+    {
+      ...$,
+      PlaySound(sound: string) {
+        sounds.push(`play ${sound} ${++started}`)
+        return started
+      },
+      StopSound(playing: number) {
+        sounds.push(`stop ${playing}`)
+      },
+    },
+    new FakePanel('Panel', 'ModlockUi'),
+    () => {},
+  )
+  const cues = (generation: number, ...list: [number, string, number?][]) =>
+    Screen.fromJson({
+      trees: [
+        {
+          mod: 'arena',
+          generation: String(generation),
+          nodes: [
+            {
+              id: '',
+              cues: list.map(([number, sound, seconds]) => ({
+                number,
+                sound,
+                seconds: seconds ?? 0,
+              })),
+            },
+          ],
+        },
+      ],
+    })
+
+  // The first screen's cues may be long over and play nothing; each later
+  // cue plays once, in order, however many screens repeat it.
+  drawing.draw(cues(1, [1, 'Old']))
+  drawing.draw(cues(1, [1, 'Old'], [3, 'Third'], [2, 'Second', 0.5]))
+  drawing.draw(cues(1, [1, 'Old'], [3, 'Third'], [2, 'Second', 0.5]))
+  expect(sounds).toEqual(['play Second 1', 'play Third 2'])
+
+  // A cut stops its sound once, on time, and not again on leaving.
+  expect(scheduled.size).toBe(1)
+  runScheduled()
+  expect(sounds.slice(2)).toEqual(['stop 1'])
+
+  // A sound stopped by leaving is not cut again.
+  sounds.length = 0
+  drawing.draw(cues(1, [3, 'Third'], [4, 'Short', 0.5]))
+  drawing.release()
+  runScheduled()
+  expect(sounds).toEqual(['play Short 3', 'stop 2', 'stop 3'])
+
+  // A new lifetime plays all its cues and stops the old one's sounds.
+  sounds.length = 0
+  drawing.draw(cues(1, [4, 'Short', 0.5], [5, 'Long']))
+  drawing.draw(cues(2, [1, 'Fresh']))
+  expect(sounds).toEqual(['play Long 4', 'stop 4', 'play Fresh 5'])
+
+  // Leaving stops what plays; the screens that follow play nothing old.
+  sounds.length = 0
+  drawing.release()
+  drawing.draw(cues(2, [1, 'Fresh']))
+  expect(sounds).toEqual(['stop 5'])
+
+  // A mod gone from the screen stops its sounds and, back, plays only the
+  // cues after its first screen, not those it sent while gone.
+  sounds.length = 0
+  drawing.draw(cues(2, [1, 'Fresh'], [2, 'Next']))
+  drawing.draw(null)
+  drawing.draw(cues(2, [1, 'Fresh'], [2, 'Next'], [3, 'Missed']))
+  drawing.draw(cues(2, [1, 'Fresh'], [2, 'Next'], [3, 'Missed'], [4, 'Last']))
+  expect(sounds).toEqual(['play Next 6', 'stop 6', 'play Last 7'])
+})
+
 test('draws inputs, avatars and game text, and sends edits', () => {
   // Draw an entry, a slider, a toggle, a dropdown, an avatar and a token.
   const root = new FakePanel('Panel', 'ModlockUi')
@@ -851,6 +1018,21 @@ test('draws inputs, avatars and game text, and sends edits', () => {
   } satisfies InputValue)
   expect(long).toBe(
     `modlockinput arena name ${Buffer.from('é'.repeat(120)).toString('base64url')}`,
+  )
+
+  // A node that is no id or a mod that is no slug, which could start a
+  // command of its own, has an empty command.
+  const on = { case: 'on', value: true } satisfies InputValue
+  for (const node of ['', 'a b', 'a;quit', 'a\nquit', 'x'.repeat(65)]) {
+    expect(pressCommand('arena', node)).toBe('')
+    expect(inputCommand('arena', node, on)).toBe('')
+  }
+  for (const mod of ['', 'a;quit', 'a\nquit', 'Arena', '..', 'a--b']) {
+    expect(pressCommand(mod, 'ability:0')).toBe('')
+    expect(inputCommand(mod, 'ready', on)).toBe('')
+  }
+  expect(pressCommand('street-brawl', 'route:scores.v2')).toBe(
+    'modlockpress street-brawl route:scores.v2',
   )
 })
 
@@ -1062,9 +1244,8 @@ test('frees the cursor once the local hero is in the HUD, because its arrival ca
   ])
 })
 
-test("hides the game's HUD parts while a root lists them", () => {
-  // Build the game's HUD: the health beside the abilities, and the
-  // announcements that hold a level-up notice.
+/** gameHud builds the game's HUD with a panel for each part a test hides. */
+function gameHud() {
   const game = new FakePanel('CitadelHud', 'Hud')
   const add = (parent: FakePanel, id: string, ...classes: string[]) => {
     const panel = $.CreatePanel('Panel', parent, id) as unknown as FakePanel
@@ -1095,92 +1276,490 @@ test("hides the game's HUD parts while a root lists them", () => {
   const minimap = add(game, 'minimap_persp')
   const abilities = add(game, 'AbilitiesContainer')
   const stats = add(game, 'hudPlayerStats')
+  return {
+    game,
+    add,
+    health,
+    bars,
+    shields,
+    held,
+    announcements,
+    boon,
+    scores,
+    chat,
+    crosshair,
+    clip,
+    lowAmmo,
+    souls,
+    minimap,
+    abilities,
+    stats,
+  }
+}
 
-  // Sweep through the fake $.Schedule.
-  const hud = new Hud(game, (_, callback) => $.Schedule(0, callback), $)
+/** clock is a guard's host on a fake clock, ticking through the fake $.Schedule. */
+function clock() {
+  const host = {
+    time: 1000,
+    Schedule: (_: number, callback: () => void) => {
+      $.Schedule(0, callback)
+    },
+    now: () => host.time,
+    // Each panel keeps every handler put on it, as a dead script's stay.
+    listeners: new Map<GuardPanel, (() => void)[]>(),
+    listen: (panel: GuardPanel, handler: () => void) => {
+      host.listeners.set(panel, [...(host.listeners.get(panel) ?? []), handler])
+    },
+    pressed: [] as string[],
+    press: (mod: string, node: string) => {
+      host.pressed.push(`${mod} ${node}`)
+    },
+    /** click runs every handler on panel, as one Activated event does. */
+    click: (panel: GuardPanel) => {
+      for (const handler of host.listeners.get(panel) ?? []) handler()
+    },
+    create: (
+      type: string,
+      parent: GuardPanel,
+      id: string,
+      properties?: Record<string, string>,
+    ) =>
+      (properties
+        ? $.CreatePanel(type, parent as unknown as Panel, id, properties)
+        : $.CreatePanel(
+            type,
+            parent as unknown as Panel,
+            id,
+          )) as unknown as GuardPanel,
+    // A dialog variable reads the panel's; a hero's name reads heroNames.
+    // The game's $.Localize throws on a second argument that is not a panel.
+    localize: (...args: [string, GuardPanel?]) => {
+      const [token, panel] = args
+      if (args.length > 1 && !panel)
+        throw new Error(
+          "Localize() optional panel argument present but isn't a panel",
+        )
+      const variable = /^\{s:(.*)\}$/.exec(token)
+      if (variable)
+        return (panel as FakePanel | undefined)?.dialog[variable[1]!] ?? token
+      return heroNames[token.slice(1)] ?? token
+    },
+    events: [] as unknown[][],
+    dispatch: (event: string, ...values: unknown[]) => {
+      host.events.push([event, ...values])
+    },
+  }
+  return host
+}
 
-  scores.style.visibility = 'visible'
+/** heroNames holds the heroes' names as the game's language shows them. */
+const heroNames: Record<string, string> = {
+  hero_atlas: 'Abrams',
+  hero_bebop: 'Bebop',
+}
 
-  // Hiding the player's health collapses its panels and keeps the rest.
-  hud.draw(hiddenParts(screen({ id: '', hideHud: ['HUD_PART_OWN_HEALTH'] })))
-  expect(bars.style.visibility).toBe('collapse')
-  expect(shields.style.visibility).toBe('collapse')
-  expect(held.style.visibility).toBeUndefined()
-  expect(boon.style.visibility).toBeUndefined()
+/** parts reads the parts a screen whose one root hides names claims. */
+function parts(...names: string[]) {
+  return hiddenParts(screen({ id: '', hideHud: names }))
+}
 
-  // A level-up notice the game shows later collapses on the next sweep.
-  hud.draw(
-    hiddenParts(
-      screen({ id: '', hideHud: ['HUD_PART_OWN_HEALTH', 'HUD_PART_LEVEL_UP'] }),
-    ),
+test("hides the game's HUD parts while a live screen claims them", () => {
+  const hud = gameHud()
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+
+  // Hiding the player's health hides its panels, marked as shown, and keeps
+  // the rest.
+  stock.screen(parts('HUD_PART_OWN_HEALTH'))
+  expect(hud.bars.visible).toBe(false)
+  expect(hud.bars.attributes.get(HIDDEN_MARK)).toBe('shown')
+  expect(hud.shields.visible).toBe(false)
+  expect(hud.held.visible).toBe(true)
+  expect(hud.boon.visible).toBe(true)
+
+  // A level-up notice the game shows later hides on the next tick.
+  stock.screen(parts('HUD_PART_OWN_HEALTH', 'HUD_PART_LEVEL_UP'))
+  expect(hud.boon.visible).toBe(false)
+  expect(hud.scores.visible).toBe(true)
+  const later = hud.add(
+    hud.announcements,
+    '',
+    'LevelUpBlock',
+    'PowerIncreaseBlock',
   )
-  expect(boon.style.visibility).toBe('collapse')
-  expect(scores.style.visibility).toBe('visible')
-  const later = add(announcements, '', 'LevelUpBlock', 'PowerIncreaseBlock')
   expect(scheduled.size).toBe(1)
   runScheduled()
-  expect(later.style.visibility).toBe('collapse')
+  expect(later.visible).toBe(false)
 
-  // The top bar collapses all but its chat.
-  hud.draw(
-    hiddenParts(
-      screen({
-        id: '',
-        hideHud: [
-          'HUD_PART_OWN_HEALTH',
-          'HUD_PART_LEVEL_UP',
-          'HUD_PART_TOP_BAR',
-        ],
-      }),
+  // The top bar hides all but its chat.
+  stock.screen(
+    parts('HUD_PART_OWN_HEALTH', 'HUD_PART_LEVEL_UP', 'HUD_PART_TOP_BAR'),
+  )
+  expect(hud.scores.visible).toBe(false)
+  expect(hud.chat.visible).toBe(true)
+
+  // Ammo hides only its own panels, not the crosshair, and the parts
+  // dropped show again.
+  stock.screen(parts('HUD_PART_LEVEL_UP', 'HUD_PART_AMMO'))
+  expect(hud.clip.visible).toBe(false)
+  expect(hud.lowAmmo.visible).toBe(false)
+  expect(hud.crosshair.visible).toBe(true)
+  expect(hud.scores.visible).toBe(true)
+  expect(hud.scores.attributes.get(HIDDEN_MARK)).toBe('')
+  expect(hud.bars.visible).toBe(true)
+
+  // The souls, minimap, abilities and stats hide whole.
+  stock.screen(
+    parts(
+      'HUD_PART_SOULS',
+      'HUD_PART_MINIMAP',
+      'HUD_PART_ABILITIES',
+      'HUD_PART_STATS',
     ),
   )
-  expect(scores.style.visibility).toBe('collapse')
-  expect(clip.style.visibility).toBeUndefined()
+  for (const panel of [hud.souls, hud.minimap, hud.abilities, hud.stats])
+    expect(panel.visible).toBe(false)
+  expect(hud.health.visible).toBe(true)
 
-  // Ammo collapses only its own panels, not the crosshair.
-  hud.draw(
-    hiddenParts(
-      screen({
-        id: '',
-        hideHud: ['HUD_PART_LEVEL_UP', 'HUD_PART_AMMO'],
-      }),
-    ),
-  )
-  expect(clip.style.visibility).toBe('collapse')
-  expect(lowAmmo.style.visibility).toBe('collapse')
-  expect(crosshair.style.visibility).toBeUndefined()
-  expect(scores.style.visibility).toBe('visible')
-  expect(chat.style.visibility).toBeUndefined()
-
-  // The souls, minimap, abilities and stats collapse whole.
-  hud.draw(
-    hiddenParts(
-      screen({
-        id: '',
-        hideHud: [
-          'HUD_PART_SOULS',
-          'HUD_PART_MINIMAP',
-          'HUD_PART_ABILITIES',
-          'HUD_PART_STATS',
-        ],
-      }),
-    ),
-  )
-  for (const panel of [souls, minimap, abilities, stats])
-    expect(panel.style.visibility).toBe('collapse')
-  expect(health.style.visibility).toBeUndefined()
-
-  // Once no root lists them, the parts show again and the sweeps stop.
-  hud.draw(hiddenParts(screen({ id: '', hideHud: ['HUD_PART_LEVEL_UP'] })))
-  expect(bars.style.visibility).toBeNull()
-  expect(scores.style.visibility).toBe('visible')
-  expect(later.style.visibility).toBe('collapse')
-  hud.draw([])
-  expect(later.style.visibility).toBeNull()
+  // A relay that ended shows everything again, and the ticks stop.
+  stock.screen(null)
+  for (const panel of [hud.souls, hud.boon, later, hud.clip])
+    expect(panel.visible).toBe(true)
   runScheduled()
   expect(scheduled.size).toBe(0)
-  for (const panel of game.descendants())
-    expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
+})
+
+/** abilityBar lays the ability bar under hud: four icons, each with its pips. */
+function abilityBar(hud: ReturnType<typeof gameHud>) {
+  const signature = hud.add(hud.abilities, 'hud_signature')
+  const icons = [1, 2, 3, 4].map((n) =>
+    hud.add(signature, `slot_signature_${n}`),
+  )
+  const pips = icons.map((icon) => {
+    const row = new FakePanel('CitadelHudAbilityUpgradePips', '')
+    row.parent = icon
+    icon.children.push(row)
+    return row
+  })
+  return { signature, icons, pips }
+}
+
+test('sends a click on the ability bar as a press only while allowed', () => {
+  // A screen whose root asks for none puts no handler on the bar.
+  const hud = gameHud()
+  const bar = abilityBar(hud)
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+  stock.screen(parts())
+  expect(host.listeners.size).toBe(0)
+
+  // One that asks puts one on each icon and its pips, and a click, which
+  // reaches both, is one press of the slot's node.
+  stock.screen(
+    parts(),
+    abilityBarMods(screen({ id: '', abilityBarPresses: true })),
+  )
+  expect(host.listeners.size).toBe(8)
+  host.click(bar.icons[1]!)
+  host.click(bar.pips[1]!)
+  expect(host.pressed).toEqual(['arena ability:1'])
+  host.time += SAME_CLICK_SECONDS
+  host.click(bar.pips[3]!)
+  host.click(bar.pips[1]!)
+  expect(host.pressed).toEqual([
+    'arena ability:1',
+    'arena ability:3',
+    'arena ability:1',
+  ])
+
+  // The ticks keep the handlers, adding none twice, and put one on an icon
+  // the game rebuilt.
+  host.time += WALK_SECONDS
+  runScheduled()
+  expect(host.listeners.get(bar.icons[0]!)?.length).toBe(1)
+  bar.icons[0]!.DeleteAsync(0)
+  const rebuilt = hud.add(bar.signature, 'slot_signature_1')
+  runScheduled()
+  host.time += 1
+  host.click(rebuilt)
+  expect(host.pressed[host.pressed.length - 1]).toBe('arena ability:0')
+
+  // A leave, the hideout, an ended relay and a lapsed lease each stop the
+  // presses.
+  const sent = () => host.pressed.length
+  let before = sent()
+  stock.leave()
+  host.time += 1
+  host.click(bar.icons[2]!)
+  expect(sent()).toBe(before)
+  stock.screen(parts(), ['arena'])
+  hud.game.classes.push(CONNECTED_TO_HIDEOUT)
+  host.click(bar.icons[2]!)
+  expect(sent()).toBe(before)
+  hud.game.classes.length = 0
+  host.click(bar.icons[2]!)
+  expect(sent()).toBe(++before)
+  host.time += LEASE_SECONDS
+  host.click(bar.icons[3]!)
+  expect(sent()).toBe(before)
+  stock.screen(null)
+  host.time += 1
+  host.click(bar.icons[3]!)
+  expect(sent()).toBe(before)
+
+  // With no claim and no bar asked, the ticks stop.
+  runScheduled()
+  runScheduled()
+  expect(scheduled.size).toBe(0)
+})
+
+test('a handler an earlier script left on the bar sends nothing', () => {
+  // The first guard's handlers stay on the bar after its script ends.
+  const hud = gameHud()
+  const bar = abilityBar(hud)
+  const host = clock()
+  const dead = new StockGuard(hud.game, host)
+  dead.screen(parts(), ['arena'])
+  const token = hud.game.GetAttributeString(BAR_GATE, '')
+  expect(token).not.toBe('')
+
+  // A guard that starts again takes the gate, and while it asks for nothing
+  // the dead handler, whose guard still counts itself allowed, sends nothing.
+  scheduled.clear()
+  host.time += 0.01
+  const live = new StockGuard(hud.game, host)
+  expect(hud.game.GetAttributeString(BAR_GATE, '')).not.toBe(token)
+  host.click(bar.icons[0]!)
+  expect(host.pressed).toEqual([])
+
+  // Once it asks, a click is one press, from its own handler.
+  live.screen(parts(), ['arena'])
+  expect(host.listeners.get(bar.icons[0]!)?.length).toBe(2)
+  host.click(bar.icons[0]!)
+  expect(host.pressed).toEqual(['arena ability:0'])
+})
+
+test('shows again a panel the guard hid only if it showed before', () => {
+  // A panel the game keeps hidden, as gameplay_hud is until a team is
+  // joined, is marked unseen and left hidden on restore.
+  const hud = gameHud()
+  hud.minimap.visible = false
+  const stock = new StockGuard(hud.game, clock())
+  stock.screen(parts('HUD_PART_MINIMAP', 'HUD_PART_SOULS'))
+  expect(hud.minimap.attributes.get(HIDDEN_MARK)).toBe('unseen')
+  stock.screen([])
+  expect(hud.minimap.visible).toBe(false)
+  expect(hud.minimap.attributes.get(HIDDEN_MARK)).toBe('')
+  expect(hud.souls.visible).toBe(true)
+})
+
+test('hides again a panel the game showed again', () => {
+  // The game showing a hidden panel again is undone on the next tick.
+  const hud = gameHud()
+  const stock = new StockGuard(hud.game, clock())
+  stock.screen(parts('HUD_PART_SOULS'))
+  hud.souls.visible = true
+  runScheduled()
+  expect(hud.souls.visible).toBe(false)
+  expect(hud.souls.attributes.get(HIDDEN_MARK)).toBe('shown')
+})
+
+test('gives the HUD back at once when the player leaves', () => {
+  // A disconnect or shutdown restores the HUD without waiting for the lease.
+  const hud = gameHud()
+  const stock = new StockGuard(hud.game, clock())
+  stock.screen(parts('HUD_PART_SOULS'))
+  stock.leave()
+  expect(hud.souls.visible).toBe(true)
+
+  // A late screen read after the leave hides again only on the mod's
+  // server; in the hideout it changes nothing.
+  hud.game.classes.push(CONNECTED_TO_HIDEOUT)
+  stock.screen(parts('HUD_PART_SOULS'))
+  expect(hud.souls.visible).toBe(true)
+  runScheduled()
+  expect(hud.souls.visible).toBe(true)
+})
+
+test('gives the HUD back in the hideout without an event', () => {
+  // The hideout class alone restores on the next tick.
+  const hud = gameHud()
+  const stock = new StockGuard(hud.game, clock())
+  stock.screen(parts('HUD_PART_SOULS'))
+  hud.game.classes.push(CONNECTED_TO_HIDEOUT)
+  runScheduled()
+  expect(hud.souls.visible).toBe(true)
+
+  // The ticks stop with nothing hidden; back on the mod's server, the next
+  // title brings the claim back.
+  runScheduled()
+  expect(scheduled.size).toBe(0)
+  hud.game.classes.length = 0
+  stock.alive()
+  expect(hud.souls.visible).toBe(false)
+})
+
+test('gives the HUD back when the titles stop for the lease', () => {
+  // A server that just goes away sends no event and no null; the lease runs
+  // out instead, unless the relay's keepalive renews it.
+  const hud = gameHud()
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+  stock.screen(parts('HUD_PART_SOULS'))
+  host.time += LEASE_SECONDS - 1
+  stock.alive()
+  host.time += LEASE_SECONDS - 1
+  runScheduled()
+  expect(hud.souls.visible).toBe(false)
+  host.time += 1
+  runScheduled()
+  expect(hud.souls.visible).toBe(true)
+
+  // With nothing hidden the ticks stop, and a title brings the claim back.
+  runScheduled()
+  expect(scheduled.size).toBe(0)
+  stock.alive()
+  expect(hud.souls.visible).toBe(false)
+})
+
+test('shows what an earlier guard hid, without its memory', () => {
+  // A reloaded script's guard restores every mark its predecessor left.
+  const hud = gameHud()
+  new StockGuard(hud.game, clock()).screen(
+    parts('HUD_PART_SOULS', 'HUD_PART_TOP_BAR'),
+  )
+  scheduled.clear()
+  hud.clip.style.visibility = 'collapse'
+  new StockGuard(hud.game, clock())
+  expect(hud.souls.visible).toBe(true)
+  expect(hud.scores.visible).toBe(true)
+  expect(hud.souls.attributes.get(HIDDEN_MARK)).toBe('')
+  expect(hud.clip.style.visibility).toBeNull()
+  expect(scheduled.size).toBe(0)
+})
+
+test("hides the hero picker and the Broker's countdown", () => {
+  // The picker sits in the game's HUD; the Broker's popup under the
+  // interface's root, read only while the player stands at his booth.
+  const hud = gameHud()
+  const top = new FakePanel('Panel', 'Root')
+  hud.game.parent = top
+  top.children.push(hud.game)
+  const picker = hud.add(hud.game, 'join_team')
+  const actions = hud.add(hud.game, 'context_action_container')
+  const popup = hud.add(top, 'ModsCorruptContainer')
+  const countdown = hud.add(popup, 'Countdown')
+  const stock = new StockGuard(hud.game, clock())
+
+  // The picker hides at once, the countdown once the player is at the booth.
+  stock.screen(parts('HUD_PART_HERO_PICKER', 'HUD_PART_BROKER_COUNTDOWN'))
+  expect(picker.visible).toBe(false)
+  expect(countdown.visible).toBe(true)
+  actions.classes.push('in_corrupted_shop_zone')
+  runScheduled()
+  expect(countdown.visible).toBe(false)
+
+  // Away from the booth the countdown still comes back when it is dropped.
+  actions.classes.length = 0
+  runScheduled()
+  stock.screen([])
+  expect(countdown.visible).toBe(true)
+  expect(picker.visible).toBe(true)
+})
+
+test('hides the whole HUD but the interfaces and tooltips that stay', () => {
+  // The HUD holds Modlock's root, the layout that reads the screens beside
+  // one of the game's panels, Hyperline's panel and the game's tooltips.
+  const hud = gameHud()
+  const host = clock()
+  const layouts = hud.add(hud.game, 'HudLayouts')
+  const layout = hud.add(layouts, '')
+  const inner = hud.add(layout, '')
+  const beside = hud.add(layouts, 'GameLayout')
+  const stays = [
+    hud.add(hud.game, 'ModlockUi'),
+    hud.add(hud.game, 'HyperlineResident'),
+    hud.add(hud.game, 'TooltipManager'),
+    layout,
+  ]
+  const stock = new StockGuard(hud.game, host, [layout])
+
+  // Everything else hides, and the way down to the layout shows.
+  stock.screen(parts('HUD_PART_ALL'))
+  for (const panel of [hud.health, hud.announcements, hud.souls, beside])
+    expect(panel.visible).toBe(false)
+  for (const panel of [...stays, layouts, inner])
+    expect(panel.visible).toBe(true)
+
+  // A panel the game adds hides once the kept walk is old, not each tick.
+  const added = hud.add(hud.game, 'Added')
+  runScheduled()
+  expect(added.visible).toBe(true)
+  host.time += WALK_SECONDS
+  runScheduled()
+  expect(added.visible).toBe(false)
+
+  // A kept panel the game removes walks again at once.
+  const later = hud.add(hud.game, 'Later')
+  hud.souls.DeleteAsync(0)
+  runScheduled()
+  expect(later.visible).toBe(false)
+
+  // A panel that comes to hold one that stays shows again on the next walk.
+  hud.add(hud.minimap, 'HyperlineLate')
+  host.time += WALK_SECONDS
+  runScheduled()
+  expect(hud.minimap.visible).toBe(true)
+  expect(hud.minimap.attributes.get(HIDDEN_MARK)).toBe('')
+
+  // Dropped, it all comes back.
+  stock.screen([])
+  for (const panel of [hud.health, hud.announcements, beside, added, later])
+    expect(panel.visible).toBe(true)
+})
+
+test('a reloaded guard finds every mark the whole HUD walk passes', () => {
+  // A guard that hid the whole HUD marks it; a marked panel no finder names
+  // any more, deep in the HUD, comes back, and the HUD's mark goes.
+  const hud = gameHud()
+  hud.game.attributes.set(ALL_MARK, '1')
+  hud.held.visible = false
+  hud.held.attributes.set(HIDDEN_MARK, 'shown')
+  new StockGuard(hud.game, clock())
+  expect(hud.held.visible).toBe(true)
+  expect(hud.held.attributes.get(HIDDEN_MARK)).toBe('')
+  expect(hud.game.attributes.get(ALL_MARK)).toBe('')
+})
+
+test('a restore walks the whole HUD only while a guard hides it', () => {
+  // Count the reads of the HUD's children, which only a walk makes.
+  const hud = gameHud()
+  let walks = 0
+  const count = hud.game.GetChildCount.bind(hud.game)
+  hud.game.GetChildCount = () => (walks++, count())
+
+  // With no mark on the HUD, a guard starting and a restore walk nothing.
+  const parts = new HudParts(hud.game, () => 0)
+  new StockGuard(hud.game, clock())
+  parts.restoreAll()
+  expect(walks).toBe(0)
+
+  // Hiding the whole HUD marks it; giving it back walks and unmarks it, and
+  // the next restore walks nothing.
+  parts.hide(HudPart.ALL)
+  expect(hud.game.attributes.get(ALL_MARK)).toBe('1')
+  expect(hud.souls.visible).toBe(false)
+  parts.restore(HudPart.ALL)
+  expect(hud.souls.visible).toBe(true)
+  expect(hud.game.attributes.get(ALL_MARK)).toBe('')
+  walks = 0
+  parts.restoreAll()
+  expect(walks).toBe(0)
+
+  // Hidden again at once, it walks again and hides a panel added since.
+  const added = hud.add(hud.game, 'Added')
+  parts.hide(HudPart.ALL)
+  expect(added.visible).toBe(false)
 })
 
 test('loads layouts and style sheets a host allows and hands them data', () => {
@@ -1666,11 +2245,11 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
     () => {},
     layouts,
   )
-  const hud = new Hud(game, (_, callback) => $.Schedule(0, callback), $)
+  const stock = new StockGuard(game, clock())
   const show = (screen: Screen) => {
     layouts.follow(screen)
     drawing.draw(screen)
-    hud.draw(hiddenParts(screen))
+    stock.screen(hiddenParts(screen))
   }
 
   const arena = Screen.fromJson({
@@ -1692,12 +2271,414 @@ test("a screen end unloads layouts and leaves the HUD to the game's CSS", () => 
   show(Screen.create({}))
   expect(events).toEqual(['unloading, shop shown false'])
   expect([scores.visible, shop.visible]).toEqual([true, true])
-  for (const panel of game.descendants()) {
-    expect(panel.style.visibility ?? null).toBeNull()
+  // The stock guard shows its own panels by their visible; the layout's
+  // native changes go back to the game's CSS.
+  expect(shop.style.visibility ?? null).toBeNull()
+  for (const panel of game.descendants())
     expect(panel.GetAttributeString(savedAttribute, '')).toBe('')
-  }
 
   minimap.loadCss('collapse')
   testing.loadCss('visible')
   expect([minimap.visible, testing.visible]).toEqual([false, true])
+})
+
+test("acknowledges the relay's keepalive and reports it", () => {
+  // The relay's alive line arrives as a JSON line part, which the bridge
+  // acknowledges so the page reads on, and reports once.
+  const state = new FakePanel('HTML', 'ModlockUiState')
+  const shown: (Screen | null)[] = []
+  let alive = 0
+  new Bridge(
+    state,
+    'https://relay/bridge.html',
+    (screen) => shown.push(screen),
+    () => {},
+    () => alive++,
+  )
+  const title = (text: string) =>
+    handlers.get(state)!.get('HTMLTitle')!(state.id, text)
+  const line = (id: number, chunk: string) =>
+    `modlock:snapshot:${JSON.stringify({ id, offset: 0, total: chunk.length, chunk })}`
+  title(line(1, 'alive'))
+  expect(state.url).toBe('https://relay/bridge.html#1')
+  expect(alive).toBe(1)
+
+  // A repeated title is not read twice, a later keepalive is, and any other
+  // line is acknowledged without a report.
+  title(line(1, 'alive'))
+  expect(alive).toBe(1)
+  title(line(2, 'alive'))
+  expect(alive).toBe(2)
+  expect(state.url).toBe('https://relay/bridge.html#0')
+  title(line(3, '%7B%7D'))
+  expect(alive).toBe(2)
+  expect(state.url).toBe('https://relay/bridge.html#1')
+  expect(shown).toEqual([])
+})
+
+/**
+ * abilityIcon lays one game ability icon under parent, as hud_ability_icon
+ * does: the frame and ring, the picture, the cooldown shade and the
+ * read-only pips.
+ */
+function abilityIcon(parent: FakePanel, id: string) {
+  const add = (under: FakePanel, name: string, ...classes: string[]) => {
+    const panel = new FakePanel('Panel', name)
+    panel.parent = under
+    under.children.push(panel)
+    panel.classes = classes
+    return panel
+  }
+  const icon = add(parent, id, 'ability_container')
+  const button = add(icon, 'button_container')
+  const frame = add(button, '', 'ability_bg')
+  const ring = add(button, '', 'ability_ring')
+  const images = add(button, '', 'image_container')
+  const own = add(images, 'ability_image', 'ability_image')
+  const shade = add(images, 'cooldown_mask')
+  const readOnly = add(icon, 'ReadOnlyPipsContainer')
+  const pips = [3, 2, 1].map((n) => add(readOnly, `Pip${n}`)).reverse()
+  return { icon, frame, ring, own, shade, readOnly, pips }
+}
+
+/**
+ * tabRows lays Tab's rows under the top bar: Ada's, a bot's showing its
+ * hero, and Cy's, each with four ability icons.
+ */
+function tabRows(hud: ReturnType<typeof gameHud>) {
+  const team = new FakePanel('CitadelHudTopBarTeam', '')
+  team.parent = hud.scores
+  hud.scores.children.push(team)
+  const row = (name: string, hero: string) => {
+    const panel = new FakePanel('CitadelHudTopBarPlayer', '')
+    panel.parent = team
+    team.children.push(panel)
+    panel.dialog.hero_name = hero
+    if (name !== '') panel.dialog.player_name = name
+    const box = hud.add(panel, 'PlayerAbilitiesContainer')
+    return [1, 2, 3, 4].map((n) => abilityIcon(box, `AbilityButton${n}`))
+  }
+  return {
+    ada: row('Ada', 'Abrams'),
+    bot: row('', 'Bebop'),
+    cy: row('Cy', 'Abrams'),
+  }
+}
+
+/** displayed is a screen whose root shows rows. */
+function displayed(...rows: JsonObject[]) {
+  return abilityRows(screen({ id: '', abilityDisplay: rows }))
+}
+
+test("dresses Tab's rows as the display names them, and gives them back", () => {
+  // Ada's row matches by name and the bot's by hero; Cy, whose hero is
+  // Abrams too, is named in no row and keeps the game's icons.
+  const hud = gameHud()
+  const tab = tabRows(hud)
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+  const rows = displayed(
+    {
+      player: 2,
+      name: 'Ada',
+      hero: 'hero_atlas',
+      abilities: [
+        { ability: 11, image: 'file://{images}/a.png', upgrades: 0b101 },
+      ],
+    },
+    {
+      player: 3,
+      name: 'BotPlayer',
+      hero: 'hero_bebop',
+      abilities: [{ ability: 22 }],
+    },
+  )
+  stock.screen(parts(), [], rows)
+
+  // Ada's first icon shows the named picture over the game's, the ring of
+  // its upgrades and its first and third read-only pips lit.
+  const ada = tab.ada[0]!
+  const picture = ada.icon.FindChildTraverse(DISPLAY_IMAGE)!
+  expect(picture.image).toBe('file://{images}/a.png')
+  expect(picture.GetParent()).toBe(ada.own.GetParent())
+  expect(ada.own.style.opacity).toBe('0')
+  expect(ada.ring.style.visibility).toBe('visible')
+  expect(ada.pips.map((pip) => pip.style.backgroundColor)).toEqual([
+    'black',
+    '#69e799',
+    'black',
+  ])
+
+  // The bot's icon keeps the game's picture, since none is named, but its
+  // hover opens the game's window for the named ability as slot 3 holds it.
+  const bot = tab.bot[0]!
+  expect(bot.own.style.opacity ?? null).toBeNull()
+  expect(bot.ring.style.visibility).toBe('collapse')
+  const cover = bot.icon.FindChildTraverse(DISPLAY_COVER)!
+  expect(cover.GetParent()).toBe(bot.icon)
+  cover.events.get('onmouseover')!()
+  expect(host.events).toEqual([
+    ['CitadelShowAbilityDetailsTooltip', bot.icon, 22, 3],
+  ])
+  cover.events.get('onmouseout')!()
+  expect(host.events[host.events.length - 1]).toEqual([
+    'CitadelHideAbilityDetailsTooltip',
+    bot.icon,
+  ])
+
+  // Slots no ability is named for, and Cy's row, are left to the game.
+  for (const icon of [tab.ada[1]!, tab.bot[3]!, ...tab.cy]) {
+    expect(icon.icon.FindChildTraverse(DISPLAY_COVER)).toBeNull()
+    expect(icon.icon.attributes.get(DRAWN_MARK) ?? '').toBe('')
+  }
+
+  // A row that drops an ability gives that icon back.
+  stock.screen(
+    parts(),
+    [],
+    displayed({ player: 2, name: 'Ada', abilities: [] }),
+  )
+  expect(ada.icon.FindChildTraverse(DISPLAY_IMAGE)).toBeNull()
+  expect(ada.own.style.opacity).toBeNull()
+  expect(ada.ring.style.visibility).toBeNull()
+  expect(ada.pips.map((pip) => pip.style.backgroundColor)).toEqual([
+    null,
+    null,
+    null,
+  ])
+
+  // A leave gives back every icon, and a hover left on a cover does nothing.
+  stock.screen(parts(), [], rows)
+  const left = tab.bot[0]!.icon.FindChildTraverse(DISPLAY_COVER)!
+  stock.leave()
+  for (const icon of [...tab.ada, ...tab.bot]) {
+    expect(icon.icon.FindChildTraverse(DISPLAY_IMAGE)).toBeNull()
+    expect(icon.icon.FindChildTraverse(DISPLAY_COVER)).toBeNull()
+    expect(icon.own.style.opacity ?? null).toBeNull()
+    expect(icon.ring.style.visibility ?? null).toBeNull()
+  }
+  host.events.length = 0
+  left.events.get('onmouseover')!()
+  expect(host.events).toEqual([])
+
+  // With nothing drawn and nothing hidden, the ticks stop.
+  runScheduled()
+  runScheduled()
+  expect(scheduled.size).toBe(0)
+})
+
+test("dresses a Tab icon whose picture the game builds late, and silences the icon's hover", () => {
+  // Ada's first icon has no picture of its own yet when the display first
+  // draws it.
+  const hud = gameHud()
+  const tab = tabRows(hud)
+  const ada = tab.ada[0]!
+  const images = ada.own.parent!
+  images.children = images.children.filter((child) => child !== ada.own)
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+  const rows = displayed({
+    player: 2,
+    name: 'Ada',
+    abilities: [{ ability: 11, image: 'file://{images}/a.png' }],
+  })
+  stock.screen(parts(), [], rows)
+  expect(ada.icon.FindChildTraverse(DISPLAY_IMAGE)).toBeNull()
+
+  // Once the game builds it, the next draw lays the named picture beside it,
+  // well within the time a look is kept.
+  images.children.push(ada.own)
+  host.time += 0.01
+  stock.screen(parts(), [], rows)
+  const picture = ada.icon.FindChildTraverse(DISPLAY_IMAGE)!
+  expect(picture.image).toBe('file://{images}/a.png')
+  expect(picture.GetParent()).toBe(images)
+  expect(ada.own.style.opacity).toBe('0')
+
+  // While dressed, the icon's own hover opens nothing, leaving the cover's
+  // window alone; a leave gives the icon's hover back to the game.
+  ada.icon.events.get('onmouseover')!()
+  expect(host.events).toEqual([])
+  stock.leave()
+  expect(ada.icon.events.has('onmouseover')).toBe(false)
+})
+
+test('a guard that starts again undresses what an earlier one drew', () => {
+  // The first guard's dressing stays on Tab and the bar after its script ends.
+  const hud = gameHud()
+  const tab = tabRows(hud)
+  const bar = barIcons(hud)
+  const host = clock()
+  new StockGuard(hud.game, host).screen(
+    parts(),
+    [],
+    displayed({
+      player: 2,
+      name: 'Ada',
+      own: true,
+      abilities: [
+        { ability: 11, image: 'file://{images}/a.png', upgrades: 0b11 },
+      ],
+    }),
+  )
+  const cover = tab.ada[0]!.icon.FindChildTraverse(DISPLAY_COVER)!
+  expect(bar[0]!.frame.style.backgroundImage).not.toBeNull()
+  scheduled.clear()
+
+  // The next guard gives it all back before any screen, and the old cover's
+  // hover, were it still reached, opens nothing.
+  host.time += 0.01
+  new StockGuard(hud.game, host)
+  expect(tab.ada[0]!.icon.FindChildTraverse(DISPLAY_IMAGE)).toBeNull()
+  expect(tab.ada[0]!.own.style.opacity).toBeNull()
+  expect(bar[0]!.frame.style.backgroundImage).toBeNull()
+  expect(bar[0]!.ring.style.visibility).toBeNull()
+  cover.events.get('onmouseover')!()
+  expect(host.events).toEqual([])
+})
+
+/**
+ * barIcons lays the ability bar's four icons under hud, as the game's
+ * hud_signature does, each with its upgrade pips: inside the icon, or apart,
+ * the four rows together in one panel of their own.
+ */
+function barIcons(hud: ReturnType<typeof gameHud>, apart = false) {
+  const signature = hud.add(hud.abilities, 'hud_signature')
+  const icons = [1, 2, 3, 4].map((n) =>
+    abilityIcon(signature, `slot_signature_${n}`),
+  )
+  const rows = apart ? hud.add(signature, 'pip_rows') : null
+  return icons.map((icon) => {
+    const pips = new FakePanel('CitadelHudAbilityUpgradePips', '')
+    const holder = rows ?? icon.icon
+    pips.parent = holder
+    holder.children.push(pips)
+    const part = (under: FakePanel, id: string, ...classes: string[]) => {
+      const panel = hud.add(under, id, ...classes)
+      return panel
+    }
+    const train = part(pips, 'TrainButton')
+    const row = part(pips, 'AbilityUpgradePips')
+    const unlocks = [1, 2, 3].map((tier) => {
+      const unlock = part(row, `AbilityUnlock${tier}`)
+      return {
+        unlock,
+        flash: part(unlock, '', 'upgradeReadyFlash'),
+        pip: part(unlock, '', 'abilityLevelPip'),
+        cost: part(unlock, '', 'abilityUpgradeCostLabel'),
+      }
+    })
+    return { ...icon, pips, train, row, unlocks }
+  })
+}
+
+test("draws the viewer's own row on the ability bar, and gives it back", () => {
+  // The viewer's row draws the bar by slot; another player's draws nothing.
+  const hud = gameHud()
+  const bar = barIcons(hud)
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+  stock.screen(
+    parts(),
+    [],
+    displayed(
+      { player: 3, name: 'Bo', abilities: [{ ability: 9, upgrades: 0b1111 }] },
+      {
+        player: 2,
+        name: 'Ada',
+        own: true,
+        abilities: [
+          { ability: 11, upgrades: 0b1011 },
+          { ability: 12, upgrades: 0b1 },
+        ],
+      },
+    ),
+  )
+
+  // Two upgrades draw the second tier's frame, ring and shade.
+  const first = bar[0]!
+  expect(first.frame.style.backgroundImage).toBe(
+    'url("s2r://panorama/images/hud/core/ability_frame_passive_2_psd.vtex")',
+  )
+  expect(first.ring.style.visibility).toBe('visible')
+  expect(first.shade.style.opacityMask).toBe(
+    'url("s2r://panorama/images/hud/core/ability_frame_2.vsvg")',
+  )
+
+  // The pips show flat, lit by upgrade, without the cost or train button.
+  expect(first.train.style.visibility).toBe('collapse')
+  expect(first.row.style.visibility).toBe('visible')
+  expect(first.unlocks.map(({ pip }) => pip.style.backgroundColor)).toEqual([
+    '#69e799',
+    'black',
+    '#69e799',
+  ])
+  expect(first.unlocks[0]!.cost.style.visibility).toBe('collapse')
+  expect(first.unlocks[0]!.flash.style.opacity).toBe('0')
+  expect(first.unlocks[0]!.pip.style.height).toBe('6px')
+
+  // An unlocked ability without upgrades has the plain frame and no ring;
+  // a slot with no ability is the game's.
+  expect(bar[1]!.frame.style.backgroundImage).toBe(
+    'url("s2r://panorama/images/hud/core/ability_frame_passive_0_psd.vtex")',
+  )
+  expect(bar[1]!.ring.style.visibility).toBe('collapse')
+  expect(bar[2]!.frame.style.backgroundImage ?? null).toBeNull()
+  expect(bar[2]!.train.style.visibility ?? null).toBeNull()
+
+  // Pips the game builds again are drawn at the next look.
+  const rebuilt = new FakePanel('CitadelHudAbilityUpgradePips', '')
+  first.icon.children.splice(first.icon.children.indexOf(first.pips), 1)
+  first.pips.valid = false
+  rebuilt.parent = first.icon
+  first.icon.children.push(rebuilt)
+  const train = hud.add(rebuilt, 'TrainButton')
+  runScheduled()
+  expect(train.style.visibility).toBe('collapse')
+
+  // A relay that ended gives back every style, on the rebuilt pips too.
+  stock.screen(null)
+  expect(train.style.visibility).toBeNull()
+  for (const slot of bar.slice(1)) {
+    expect(slot.frame.style.backgroundImage ?? null).toBeNull()
+    expect(slot.ring.style.visibility ?? null).toBeNull()
+    expect(slot.shade.style.opacityMask ?? null).toBeNull()
+    expect(slot.train.style.visibility ?? null).toBeNull()
+    expect(slot.row.style.visibility ?? null).toBeNull()
+    for (const { pip, cost, flash } of slot.unlocks) {
+      expect(pip.style.backgroundColor ?? null).toBeNull()
+      expect(pip.style.height ?? null).toBeNull()
+      expect(cost.style.visibility ?? null).toBeNull()
+      expect(flash.style.opacity ?? null).toBeNull()
+    }
+    expect(slot.icon.attributes.get(DRAWN_MARK) ?? '').toBe('')
+  }
+})
+
+test('finds pips the game makes apart from the icons by where they sit', () => {
+  // The four rows sit together, apart from the icons; each slot's row is
+  // drawn and listened on as the one inside its icon would be.
+  const hud = gameHud()
+  const bar = barIcons(hud, true)
+  const host = clock()
+  const stock = new StockGuard(hud.game, host)
+  stock.screen(
+    parts(),
+    abilityBarMods(screen({ id: '', abilityBarPresses: true })),
+    displayed({
+      player: 2,
+      name: 'Ada',
+      own: true,
+      abilities: [{}, { ability: 12, upgrades: 0b11 }],
+    }),
+  )
+  expect(bar[1]!.train.style.visibility).toBe('collapse')
+  expect(bar[1]!.unlocks.map(({ pip }) => pip.style.backgroundColor)).toEqual([
+    '#69e799',
+    'black',
+    'black',
+  ])
+  expect(bar[0]!.train.style.visibility ?? null).toBeNull()
+  host.click(bar[3]!.pips)
+  expect(host.pressed).toEqual(['arena ability:3'])
 })

@@ -203,6 +203,20 @@ std::expected<const gameinterop::ImbueFunctions*, std::string> GameServices::Imb
   return &*imbues_;
 }
 
+std::expected<const gameinterop::TrainFunctions*, std::string> GameServices::Training() {
+  if (auto cached = Cache(training_, &gameinterop::TrainFunctions::Resolve); !cached) {
+    return std::unexpected(cached.error());
+  }
+  return &*training_;
+}
+
+std::expected<const gameinterop::BuyFunctions*, std::string> GameServices::Shop() {
+  if (auto cached = Cache(shop_, &gameinterop::BuyFunctions::Resolve); !cached) {
+    return std::unexpected(cached.error());
+  }
+  return &*shop_;
+}
+
 std::expected<const gameinterop::AbilitySlots*, std::string> GameServices::Slots() {
   if (auto cached = Cache(slots_, &gameinterop::AbilitySlots::Resolve); !cached) {
     return std::unexpected(cached.error());
@@ -346,13 +360,6 @@ std::expected<gameinterop::RequiredSouls, std::string> GameServices::RequiredSou
     return std::unexpected(cached.error());
   }
   return required_souls_;
-}
-
-std::expected<const gameinterop::NativeSound*, std::string> GameServices::Sound() {
-  if (auto cached = Cache(sound_, &gameinterop::NativeSound::TryCreate); !cached) {
-    return std::unexpected(cached.error());
-  }
-  return &*sound_;
 }
 
 std::expected<const gameinterop::GamePause*, std::string> GameServices::Pause() {

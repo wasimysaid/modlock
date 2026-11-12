@@ -9,6 +9,7 @@ import (
 	"github.com/paralin/modlock/project"
 	"github.com/paralin/modlock/publish"
 	modpublish "github.com/paralin/modlock/publish"
+	"github.com/paralin/modlock/src/wasm"
 	"github.com/pkg/errors"
 )
 
@@ -26,6 +27,8 @@ func publishCommand(out *printer) *cli.Command {
 			&cli.StringFlag{Name: "origin", Value: modpublish.DefaultOrigin, Usage: "the Hyperline service to publish to"},
 			&cli.StringFlag{Name: "out", Value: ".", Usage: "the directory archive writes the zip to"},
 			&cli.StringFlag{Name: "notes", Usage: "what the release changed, for hyperline and github"},
+			&cli.BoolFlag{Name: "prerelease", Usage: "publish to hyperline for the mod's testers only, in its Prerelease games, and leave its games on their release"},
+			&cli.BoolFlag{Name: "allow-fallback", Usage: "publish a mod that asks for RUNTIME_WASM on QuickJS when scriptc cannot compile it"},
 		},
 		Action: func(c *cli.Context) error {
 			// Build and check the mod.
@@ -40,10 +43,16 @@ func publishCommand(out *printer) *cli.Command {
 			if err != nil {
 				return errors.Wrap(err, "check the built mod")
 			}
-			mod := &modpublish.Mod{Dir: opened.Output(), Manifest: manifest, Notes: c.String("notes")}
+			if err := checkRuntime(opened.Manifest.GetRuntime(), manifest.GetRuntime(), c.Bool("allow-fallback")); err != nil {
+				return err
+			}
+			mod := &modpublish.Mod{Dir: opened.Output(), Manifest: manifest, Notes: c.String("notes"), Prerelease: c.Bool("prerelease")}
 			name := manifest.GetSlug() + " " + manifest.GetVersion()
 
-			// Publish to the chosen place.
+			// Publish to the chosen place. Only Hyperline has prereleases.
+			if mod.Prerelease && c.String("to") != "hyperline" {
+				return errors.New("--prerelease publishes to hyperline only")
+			}
 			switch to := c.String("to"); to {
 			case "hyperline":
 				return publishHyperline(c, out, mod, name)
@@ -89,6 +98,14 @@ func publishHyperline(c *cli.Context, out *printer, mod *modpublish.Mod, name st
 
 	// Report the review.
 	out.published("hyperline", release, "")
+	if mod.Prerelease && !release.GetPrerelease() {
+		return errors.Errorf("%s was published as a release, because %s does not know prereleases yet; choose an earlier release current or withdraw it on hyperline.gg", name, c.String("origin"))
+	}
+	approved := release.GetReviewState() == publish.ReviewState_REVIEW_STATE_APPROVED || release.GetReviewState() == publish.ReviewState_REVIEW_STATE_APPROVED_FOR_SERVERS
+	if mod.Prerelease && approved {
+		out.note("published " + name + " as the prerelease; the mod's testers play it in its Prerelease games, and choosing it current makes it the release")
+		return nil
+	}
 	switch release.GetReviewState() {
 	case publish.ReviewState_REVIEW_STATE_APPROVED:
 		out.note("published " + name + "; players can install it now")
@@ -109,4 +126,14 @@ func hyperlineSessionFile() (string, error) {
 		return "", errors.Wrap(err, "find the configuration directory")
 	}
 	return filepath.Join(config, "modlock", "hyperline-session.json"), nil
+}
+
+// checkRuntime refuses a build that runs on another runtime than the mod
+// asks for, as a RUNTIME_WASM mod scriptc could not compile does, unless the
+// author allows the fallback. The build has already printed why.
+func checkRuntime(asked, built wasm.Manifest_Runtime, allowFallback bool) error {
+	if asked != wasm.Manifest_RUNTIME_WASM || built == asked || allowFallback {
+		return nil
+	}
+	return errors.New("the mod asks for RUNTIME_WASM, but this build runs on QuickJS, as the warning above says; fix what scriptc reports, or publish on QuickJS with --allow-fallback")
 }

@@ -1,14 +1,17 @@
 // The Modlock renderer draws the interfaces mods show the local player. Its
 // layout holds the relay panel; this script draws each mod's tree with stock
-// panels over the game's HUD, which stays on screen in every match, and hides
-// the parts of that HUD the trees' roots list, freeing the cursor while one
-// asks. A press runs the console command that sends it to the server.
+// panels over the game's HUD, which stays on screen in every match, and its
+// stock guard hides the parts of that HUD the trees' roots list while the
+// screen is live, freeing the cursor while one asks. A press runs the console
+// command that sends it to the server.
 
 import { Bridge } from './bridge.js'
 import { AddonLayouts, Drawing, inputCommand, pressCommand } from './draw.js'
+import { StockGuard } from './guard.js'
 import {
+  abilityBarMods,
+  abilityRows,
   Cursor,
-  Hud,
   cursorAsks,
   cursorFreed,
   heroInHud,
@@ -51,8 +54,9 @@ const drawing = new Drawing(
     MousePosition: () => $.MousePosition(),
     RegisterEventHandler: (event, panel, handler) =>
       $.RegisterEventHandler(event, panel as Panel, handler),
-    PlaySound: (sound: string) => {
-      PlayUISoundEvent(sound)
+    PlaySound: (sound: string) => PlayUISoundEvent(sound),
+    StopSound: (playing: number) => {
+      StopUISoundEvent(playing)
     },
     Schedule: (seconds: number, callback: () => void) => {
       $.Schedule(seconds, callback)
@@ -65,13 +69,41 @@ const drawing = new Drawing(
   (mod, node, value) =>
     $.DispatchEvent('CitadelConCommand', inputCommand(mod, node, value)),
 )
-const stock = new Hud(
+const stock = new StockGuard(
   game,
-  (seconds, callback) => {
-    $.Schedule(seconds, callback)
+  {
+    Schedule: (seconds, callback) => {
+      $.Schedule(seconds, callback)
+    },
+    now: () => Date.now() / 1000,
+    listen: (panel, handler) => {
+      $.RegisterEventHandler('Activated', panel as Panel, () => {
+        handler()
+      })
+    },
+    press: (mod, node) =>
+      $.DispatchEvent('CitadelConCommand', pressCommand(mod, node)),
+    create: (type, parent, id, properties = {}) =>
+      $.CreatePanel(type, parent as Panel, id, properties),
+    localize: (token, panel) => $.Localize(token, panel),
+    dispatch: (event, ...values) => {
+      $.DispatchEvent(event, ...values)
+    },
   },
-  $,
+  // Hiding the whole HUD leaves this layout, which reads the screens.
+  [context],
 )
+// The game says the player is leaving as they ask to, and as it shuts the
+// map down; a server that just goes away says neither, and the guard's lease
+// runs out instead. Both events go on to other handlers, and close the
+// tooltips and windows the mods' panels opened and the sounds they started.
+for (const event of ['CitadelDisconnectFromGame', 'GameSystemGameShutdown']) {
+  $.RegisterForUnhandledEvent(event, () => {
+    stock.leave()
+    drawing.release()
+    return false
+  })
+}
 const cursor = new Cursor((event, ...values) => {
   $.DispatchEvent(event, ...values)
 }, game)
@@ -85,8 +117,13 @@ new Bridge(
   (screen) => {
     layouts.follow(screen)
     drawing.draw(screen)
-    stock.draw(hiddenParts(screen))
+    stock.screen(
+      screen ? hiddenParts(screen) : null,
+      abilityBarMods(screen),
+      abilityRows(screen),
+    )
     cursor.set(cursorFreed(screen), cursorAsks(screen))
   },
   (command) => $.DispatchEvent('CitadelConCommand', command),
+  () => stock.alive(),
 )

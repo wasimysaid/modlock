@@ -23,6 +23,19 @@ const RelayAgent = "Source2 HTML"
 // faster than the game draws them; the stream sends the newest screen instead.
 const FrameGap = 50 * time.Millisecond
 
+// Keepalive is the longest the stream stays quiet: while the screen is
+// unchanged it writes AliveLine this often. The renderer gives the game's HUD
+// back once its titles stop for its lease, 30 s, so a quiet stream must still
+// show it is delivering; sending the screen again would cost a board's
+// several acknowledged title parts.
+const Keepalive = 5 * time.Second
+
+// AliveLine is the stream's keepalive. The relay page carries a line that is
+// not a packed screen as a JSON line part, which the renderer acknowledges.
+// The screen says whether the player is in the server, so the keepalive only
+// says the stream delivers; it follows any change on the same stream.
+const AliveLine = "alive\n"
+
 // ScreenSource returns a player's screen and a channel that closes when it
 // may have changed.
 type ScreenSource func() (*ui.Screen, <-chan struct{})
@@ -41,6 +54,8 @@ type Relay struct {
 	screen ScreenSource
 	// commands hands each command to one open stream.
 	commands chan command
+	// keepalive is the longest the stream stays quiet, Keepalive but in tests.
+	keepalive time.Duration
 }
 
 // command is a frame to send and a channel closed once a stream wrote it.
@@ -51,7 +66,7 @@ type command struct {
 
 // NewRelay returns a Relay serving screen to the relay page at origin.
 func NewRelay(origin string, screen ScreenSource) *Relay {
-	return &Relay{origin: origin, screen: screen, commands: make(chan command)}
+	return &Relay{origin: origin, screen: screen, commands: make(chan command), keepalive: Keepalive}
 }
 
 // Send sends a command frame to the game on an open stream, and reports
@@ -115,7 +130,8 @@ func (r *Relay) admit(w http.ResponseWriter, request *http.Request) bool {
 }
 
 // stream writes the player's screen, then each changed screen and each
-// command, until the page goes away.
+// command, and the keepalive after each quiet Keepalive, until the page goes
+// away.
 func (r *Relay) stream(w http.ResponseWriter, request *http.Request) {
 	// Write packed lines of text, flushing each one.
 	controller := http.NewResponseController(w)
@@ -133,27 +149,43 @@ func (r *Relay) stream(w http.ResponseWriter, request *http.Request) {
 		return err == nil && controller.Flush() == nil
 	}
 	var sent *ui.Screen
+	quiet := false
 	for {
-		// Send the screen as one packed line, unless it is the one sent.
+		// Send the screen as one packed line, unless it is the one sent, and
+		// the keepalive after a quiet wait.
 		screen, changed := r.screen()
-		if sent == nil || !screen.EqualVT(sent) {
+		switch {
+		case sent == nil || !screen.EqualVT(sent):
 			if !write(&panorama.Frame{Body: &panorama.Frame_Screen{Screen: screen}}) {
 				return
 			}
 			sent = screen
+		case quiet:
+			if _, err := w.Write([]byte(AliveLine)); err != nil || controller.Flush() != nil {
+				return
+			}
 		}
 
 		// Wait for a change, then let the page draw before the next frame;
 		// a command goes at once.
+		timer := time.NewTimer(r.keepalive)
 		select {
 		case <-changed:
+			timer.Stop()
+			quiet = false
 		case c := <-r.commands:
+			timer.Stop()
 			if !write(c.frame) {
 				return
 			}
 			close(c.sent)
+			quiet = false
+			continue
+		case <-timer.C:
+			quiet = true
 			continue
 		case <-request.Context().Done():
+			timer.Stop()
 			return
 		}
 		select {

@@ -44,6 +44,77 @@ TEST(UiTrees, TracksButtons) {
   EXPECT_FALSE(trees.IsButton(3, "ready"));
 }
 
+TEST(UiTrees, TakesAbilityBarPressesOnlyWhileTheRootAsks) {
+  // A root without the ask takes no bar press, even with a button of that id.
+  UiTrees trees;
+  ASSERT_TRUE(trees.Apply(3, Set("", modlock::wasm::ui::KIND_PANEL)));
+  ASSERT_TRUE(trees.Apply(3, Set("ability:0", modlock::wasm::ui::KIND_BUTTON)));
+  EXPECT_FALSE(trees.IsButton(3, "ability:0"));
+
+  // A root that asks takes a press on each of the four slots and nothing else.
+  auto asks = Set("", modlock::wasm::ui::KIND_PANEL);
+  asks.mutable_set(0)->set_ability_bar_presses(true);
+  ASSERT_TRUE(trees.Apply(3, asks));
+  for (const char* node : {"ability:0", "ability:1", "ability:2", "ability:3"}) {
+    EXPECT_TRUE(trees.IsButton(3, node)) << node;
+  }
+  for (const char* node : {"ability:4", "ability:", "ability:00", "ability:a"}) {
+    EXPECT_FALSE(trees.IsButton(3, node)) << node;
+  }
+  EXPECT_FALSE(trees.IsButton(4, "ability:0"));
+
+  // Only the root's ask counts, and a root that stops asking takes none.
+  auto child = Set("panel", modlock::wasm::ui::KIND_PANEL);
+  child.mutable_set(0)->set_ability_bar_presses(true);
+  ASSERT_TRUE(trees.Apply(4, Set("", modlock::wasm::ui::KIND_PANEL)));
+  ASSERT_TRUE(trees.Apply(4, child));
+  EXPECT_FALSE(trees.IsButton(4, "ability:0"));
+  ASSERT_TRUE(trees.Apply(3, Set("", modlock::wasm::ui::KIND_PANEL)));
+  EXPECT_FALSE(trees.IsButton(3, "ability:0"));
+}
+
+TEST(UiTrees, ChecksTheAbilityDisplay) {
+  // A row of four abilities with pictures from the game's content is drawn.
+  UiTrees trees;
+  auto shown = Set("", modlock::wasm::ui::KIND_PANEL);
+  auto* row = shown.mutable_set(0)->add_ability_display();
+  row->set_player(5);
+  row->set_name("Player One");
+  row->set_hero("hero_atlas");
+  for (int slot = 0; slot < 4; ++slot) {
+    auto* ability = row->add_abilities();
+    ability->set_ability(7);
+    ability->set_image("file://{images}/hud/abilities/bull_drain.psd");
+    ability->set_upgrades(0b11);
+  }
+  EXPECT_TRUE(trees.Apply(3, shown));
+
+  // A fifth ability, a picture from the web, a slot past the players or a hero
+  // that is not a word is refused.
+  auto fifth = shown;
+  fifth.mutable_set(0)->mutable_ability_display(0)->add_abilities();
+  EXPECT_FALSE(trees.Apply(3, fifth));
+  auto web = shown;
+  web.mutable_set(0)->mutable_ability_display(0)->mutable_abilities(1)->set_image(
+      "https://example.com/a.png");
+  EXPECT_FALSE(trees.Apply(3, web));
+  auto slot = shown;
+  slot.mutable_set(0)->mutable_ability_display(0)->set_player(64);
+  EXPECT_FALSE(trees.Apply(3, slot));
+  auto hero = shown;
+  hero.mutable_set(0)->mutable_ability_display(0)->set_hero("hero atlas");
+  EXPECT_FALSE(trees.Apply(3, hero));
+  auto name = shown;
+  name.mutable_set(0)->mutable_ability_display(0)->set_name(std::string(129, 'a'));
+  EXPECT_FALSE(trees.Apply(3, name));
+
+  // A slot that shows the game's own takes no picture; a bot's row no name.
+  auto plain = shown;
+  plain.mutable_set(0)->mutable_ability_display(0)->mutable_abilities(2)->clear_image();
+  plain.mutable_set(0)->mutable_ability_display(0)->clear_name();
+  EXPECT_TRUE(trees.Apply(3, plain));
+}
+
 TEST(UiTrees, RefusesWhatCannotBeDrawn) {
   // Track a button.
   UiTrees trees;
@@ -57,6 +128,13 @@ TEST(UiTrees, RefusesWhatCannotBeDrawn) {
   EXPECT_TRUE(trees.Apply(0, web));
   EXPECT_FALSE(trees.Apply(0, Set(std::string(65, 'x'), modlock::wasm::ui::KIND_PANEL)));
   EXPECT_FALSE(trees.Apply(64, Set("ready", modlock::wasm::ui::KIND_BUTTON)));
+
+  // A press writes an id into a console command, so an id is a word that may
+  // hold '-', '.' and ':' and nothing that starts another command.
+  for (const char* id : {"a b", "a;quit", "a\nquit", "a\"b", "a/b"}) {
+    EXPECT_FALSE(trees.Apply(0, Set(id, modlock::wasm::ui::KIND_BUTTON))) << id;
+  }
+  EXPECT_TRUE(trees.Apply(0, Set("route:scores.v2", modlock::wasm::ui::KIND_BUTTON)));
 
   // A layout names an .xml file inside the mod's addon and nothing outside it.
   auto layout = Set("inventory", modlock::wasm::ui::KIND_LAYOUT);
