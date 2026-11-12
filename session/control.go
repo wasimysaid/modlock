@@ -76,36 +76,54 @@ func (c *Control) request(ctx context.Context, request *control.ControlRequest) 
 
 // Run accepts the host's connection and passes each host event to handle
 // until the host disconnects or ctx ends. It returns nil when the host
-// disconnects.
+// disconnects. The port is open to every program on the PC, so a connection
+// that closes or sends anything but an event first is not the host: Run drops
+// it and waits for the next, and no request goes to it.
 func (c *Control) Run(ctx context.Context, handle func(*control.HostEvent)) error {
-	// Accept one host; closing the listener ends the wait with ctx.
+	// Accept connections until one is the host; closing the listener ends
+	// the wait with ctx.
 	stop := context.AfterFunc(ctx, func() { _ = c.listener.Close() })
 	defer stop()
-	conn, err := c.listener.Accept()
-	if err != nil {
-		if ctx.Err() != nil {
-			return context.Canceled
+	for {
+		conn, err := c.listener.Accept()
+		if err != nil {
+			if ctx.Err() != nil {
+				return context.Canceled
+			}
+			return errors.Wrap(err, "accept the host")
 		}
-		return errors.Wrap(err, "accept the host")
+		hosted, err := c.serve(ctx, conn, handle)
+		if hosted || err != nil {
+			return err
+		}
 	}
+}
+
+// serve passes conn's events to handle until it disconnects, and reports
+// whether conn was the host: whether its first message was an event.
+func (c *Control) serve(ctx context.Context, conn net.Conn, handle func(*control.HostEvent)) (bool, error) {
 	defer conn.Close()
-
-	// Forward requests while the host is connected.
-	sendCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go c.send(sendCtx, conn)
-
-	// Pass events until the host disconnects.
 	stopRead := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	defer stopRead()
+	sendCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Pass events until the host disconnects.
 	reader := bufio.NewReader(conn)
+	hosted := false
 	for {
 		event := &control.HostEvent{}
 		if err := readMessage(reader, event); err != nil {
 			if ctx.Err() != nil {
-				return context.Canceled
+				return hosted, context.Canceled
 			}
-			return nil
+			return hosted, nil
+		}
+
+		// Forward requests once the connection proves to be the host.
+		if !hosted {
+			hosted = true
+			go c.send(sendCtx, conn)
 		}
 
 		// UI lifetimes belong to the screen owner, not the mod that filled
