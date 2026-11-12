@@ -44,13 +44,20 @@ func MapName(name string) error {
 	return errors.Errorf("mod.json's map %q is not a Deadlock map; name the mod's own map %s<name> and put it in %s/%s<name>.vpk", name, ModMapPrefix, MapsDir, ModMapPrefix)
 }
 
-// Map checks that the built mod in dist plays a map every player has: a stock
-// map, or an hl_ map whose maps/<map>.vpk the build ships.
+// Map checks that the built mod or project in dist plays a map every player
+// has: a stock map, or a map whose maps/<map>.vpk dist ships. The session
+// mounts a shipped map under any name, so a mode that ships its map keeps the
+// name the map was compiled under; an hl_ map must be shipped.
 func Map(dist fs.FS, name string) error {
+	shipped := path.Join(MapsDir, name+".vpk")
+	if name != "" && fs.ValidPath(shipped) {
+		if _, err := fs.Stat(dist, shipped); err == nil {
+			return nil
+		}
+	}
 	if err := MapName(name); err != nil || !strings.HasPrefix(name, ModMapPrefix) {
 		return err
 	}
-	shipped := path.Join(MapsDir, name+".vpk")
 	if _, err := fs.Stat(dist, shipped); err != nil {
 		return errors.Errorf("mod.json plays the map %s, but the build has no %s; put the compiled map in the project's %s", name, shipped, shipped)
 	}

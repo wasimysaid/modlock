@@ -85,6 +85,8 @@ func TestMap(t *testing.T) {
 		{"hl_arena_pit", shipped, ""},
 		{"hl_arena_pit", nil, "has no maps/hl_arena_pit.vpk"},
 		{"arena_pit_v1", nil, "hl_<name>"},
+		{"arena_pit_v1", fstest.MapFS{"maps/arena_pit_v1.vpk": {Data: []byte("vpk")}}, ""},
+		{"../arena", nil, "hl_<name>"},
 		{"dl_hideout", nil, "hl_<name>"},
 	} {
 		err := Map(test.dist, test.name)

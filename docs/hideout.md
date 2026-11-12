@@ -37,6 +37,7 @@ remaining checks.
 | Native panel changes | Panorama renderer and layout library | `Modlock.native` is the one way a layout changes the game's own panels; every change is released when the layout unloads, and a released visibility goes back to the game's own CSS |
 | Session commands | Relay and renderer | The relay stream carries `connect` to a loopback port and `disconnect`, which the renderer runs as console commands |
 | Pawn observer service fields | Native entity field layer | Existing field reads and writes resolve `CPlayer_ObserverServices` through a pawn's schema-declared observer services pointer |
+| Shipped maps keep their names | Project and publish checks | A map the project ships as `maps/<map>.vpk` passes under any name; upstream's `hl_` rule still refuses a map the mod does not ship. Name a new mode's map `hl_<name>` |
 | Server-only mode settings | Native console layer | A console variable a mode sets reaches the player only if the game puts it back when the player leaves |
 
 A scripted press bypasses the combined input block mask, including blocks from
